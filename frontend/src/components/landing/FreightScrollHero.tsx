@@ -431,9 +431,12 @@ export function FreightScrollHero() {
           </a>
           <a
             className="freight-nav-pill"
-            href="#get-started"
+            href="/register"
           >
             Get Started
+          </a>
+          <a href="/login">
+            Sign In
           </a>
         </div>
       </nav>
