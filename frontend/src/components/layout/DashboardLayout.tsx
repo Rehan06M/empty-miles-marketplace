@@ -34,6 +34,7 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+
 const roleConfig: Record<
   DashboardRole,
   {
@@ -49,10 +50,25 @@ const roleConfig: Record<
         icon: LayoutDashboard,
         to: "/demo/shipper",
       },
-      { label: "My Loads", icon: Package },
-      { label: "Find Matches", icon: Route },
-      { label: "My Bookings", icon: CalendarCheck },
-      { label: "Analytics", icon: BarChart3 },
+      {
+        label: "My Loads",
+        icon: Package,
+        to: "/demo/shipper/loads",
+      },
+      {
+        label: "Find Matches",
+        icon: Route,
+        to: "/demo/shipper/matches",
+      },
+      {
+        label: "My Bookings",
+        icon: CalendarCheck,
+        to: "/demo/shipper/bookings",
+      },
+      {
+        label: "Analytics",
+        icon: BarChart3,
+      },
     ],
   },
   carrier: {
@@ -63,10 +79,25 @@ const roleConfig: Record<
         icon: LayoutDashboard,
         to: "/demo/carrier",
       },
-      { label: "My Trucks", icon: Truck },
-      { label: "Empty Legs", icon: Route },
-      { label: "Booking Requests", icon: ClipboardList },
-      { label: "Analytics", icon: BarChart3 },
+      {
+        label: "My Trucks",
+        icon: Truck,
+        to: "/demo/carrier/trucks",
+      },
+      {
+        label: "Empty Legs",
+        icon: Route,
+        to: "/demo/carrier/empty-legs",
+      },
+      {
+        label: "Booking Requests",
+        icon: ClipboardList,
+        to: "/demo/carrier/requests",
+      },
+      {
+        label: "Analytics",
+        icon: BarChart3,
+      },
     ],
   },
   admin: {
@@ -85,6 +116,7 @@ const roleConfig: Record<
     ],
   },
 };
+
 
 export function DashboardLayout({
   role,
