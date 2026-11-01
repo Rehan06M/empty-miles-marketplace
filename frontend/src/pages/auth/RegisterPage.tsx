@@ -1,3 +1,5 @@
+import { useCallback } from "react";
+import { GoogleSignInButton } from "../../components/auth/GoogleSignInButton";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -40,7 +42,7 @@ type RegistrationErrors = {
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, googleSignIn } = useAuth();
 
   const [submitting, setSubmitting] = useState(false);
   const [searchParams] = useSearchParams();
@@ -157,6 +159,46 @@ export function RegisterPage() {
       setSubmitting(false);
     }
   }
+
+
+  const handleGoogleRegister = useCallback(
+    async (credential: string) => {
+      setNotice("");
+
+      if (!role) {
+        setErrors((current) => ({
+          ...current,
+          role: "Choose Shipper or Carrier first.",
+        }));
+        return;
+      }
+
+      setSubmitting(true);
+
+      try {
+        const user = await googleSignIn({
+          credential,
+          role: role === "shipper"
+            ? "SHIPPER"
+            : "CARRIER",
+        });
+
+        navigate(dashboardForRole(user.role), {
+          replace: true,
+        });
+      } catch (error) {
+        setNotice(
+          error instanceof ApiError
+            ? error.message
+            : "Google registration failed. Please try again."
+        );
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [role, googleSignIn, navigate]
+  );
+
 
 
   return (
@@ -376,6 +418,30 @@ export function RegisterPage() {
           </div>
         )}
       </form>
+
+      <div className="mt-7">
+        <div className="mb-5 flex items-center gap-4">
+          <div className="h-px flex-1 bg-line" />
+
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Or register with
+          </span>
+
+          <div className="h-px flex-1 bg-line" />
+        </div>
+
+        <p className="mb-4 text-center text-xs text-muted">
+          Select Shipper or Carrier above before
+          continuing with Google.
+        </p>
+
+        <div className="flex justify-center">
+          <GoogleSignInButton
+            onCredential={handleGoogleRegister}
+            disabled={submitting}
+          />
+        </div>
+      </div>
 
       <p className="mt-8 text-center text-sm text-muted">
         Already registered?{" "}

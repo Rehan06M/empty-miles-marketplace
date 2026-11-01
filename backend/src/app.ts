@@ -1,4 +1,4 @@
-
+import googleAuthRoutes from "./modules/auth/google.routes.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -29,6 +29,7 @@ app.get("/api/v1/health", (_req, res) => {
 
 // Authentication endpoints
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/auth/google", googleAuthRoutes);
 
 // Unknown API routes
 app.use((_req, res) => {

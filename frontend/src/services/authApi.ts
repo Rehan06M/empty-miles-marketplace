@@ -165,3 +165,23 @@ export function dashboardForRole(role: UserRole): string {
             return "/app/admin";
     }
 }
+
+
+export type GoogleAuthPayload = {
+    credential: string;
+    role?: "SHIPPER" | "CARRIER";
+};
+
+export async function loginWithGoogle(
+    data: GoogleAuthPayload
+): Promise<AuthSession> {
+    const result = await apiRequest<
+        ApiResponse<AuthSession>
+    >("/auth/google", {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+
+    return result.data;
+}
+

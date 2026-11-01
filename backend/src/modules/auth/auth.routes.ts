@@ -155,7 +155,7 @@ router.post("/login", authLimiter, async (req, res, next) => {
       where: { email },
     });
 
-    const passwordValid = user
+    const passwordValid = user?.passwordHash
       ? await bcrypt.compare(password, user.passwordHash)
       : false;
 

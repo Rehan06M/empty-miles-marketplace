@@ -1,3 +1,5 @@
+import { useCallback } from "react";
+import { GoogleSignInButton } from "../../components/auth/GoogleSignInButton";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -21,7 +23,7 @@ type LoginErrors = {
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, googleSignIn } = useAuth();
 
   const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState("");
@@ -78,6 +80,38 @@ export function LoginPage() {
       setSubmitting(false);
     }
   }
+
+  const handleGoogleLogin = useCallback(
+    async (credential: string) => {
+      setNotice("");
+      setSubmitting(true);
+
+      try {
+        const user = await googleSignIn({
+          credential,
+        });
+
+        navigate(dashboardForRole(user.role), {
+          replace: true,
+        });
+      } catch (error) {
+        if (error instanceof ApiError) {
+          if (error.status === 400) {
+            setNotice(
+              "If you're new to Empty Miles, register first and choose Shipper or Carrier."
+            );
+          } else {
+            setNotice(error.message);
+          }
+        } else {
+          setNotice("Google Sign-In failed. Try again.");
+        }
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [googleSignIn, navigate]
+  );
 
 
   return (
@@ -178,6 +212,27 @@ export function LoginPage() {
             {notice}
           </div>
         )}
+
+
+        <div className="mt-7">
+          <div className="mb-5 flex items-center gap-4">
+            <div className="h-px flex-1 bg-line" />
+
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Or continue with
+            </span>
+
+            <div className="h-px flex-1 bg-line" />
+          </div>
+
+          <div className="flex justify-center">
+            <GoogleSignInButton
+              onCredential={handleGoogleLogin}
+              disabled={submitting}
+            />
+          </div>
+        </div>
+
       </form>
 
       <p className="mt-8 text-center text-sm text-muted">

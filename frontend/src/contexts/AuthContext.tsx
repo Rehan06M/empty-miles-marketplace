@@ -14,6 +14,7 @@ import {
   loginUser,
   registerUser,
   setAccessToken,
+  loginWithGoogle,
 } from "../services/authApi";
 
 import type {
@@ -21,6 +22,7 @@ import type {
   AuthUser,
   LoginPayload,
   RegisterPayload,
+  GoogleAuthPayload,
 } from "../services/authApi";
 
 type AuthContextValue = {
@@ -30,6 +32,7 @@ type AuthContextValue = {
   register: (data: RegisterPayload) => Promise<AuthUser>;
   logout: () => void;
   homePath: string;
+  googleSignIn: (data: GoogleAuthPayload) => Promise<AuthUser>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(
@@ -99,6 +102,16 @@ export function AuthProvider({
     [acceptSession]
   );
 
+
+  const googleSignIn = useCallback(
+    async (data: GoogleAuthPayload) => {
+      const session = await loginWithGoogle(data);
+      return acceptSession(session);
+    },
+    [acceptSession]
+  );
+
+
   useEffect(() => {
     if (expiresAt === null) return;
 
@@ -118,6 +131,7 @@ export function AuthProvider({
         isAuthenticated: Boolean(user),
         login,
         register,
+        googleSignIn,
         logout,
         homePath: user
           ? dashboardForRole(user.role)

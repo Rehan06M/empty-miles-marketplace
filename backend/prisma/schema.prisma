@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -58,14 +57,15 @@ enum BookingStatus {
 // ------------------------------------------------
 
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
+  id           String         @id @default(uuid()) @db.Uuid
   name         String
-  email        String     @unique
-  passwordHash String
+  email        String         @unique
+  passwordHash String?
   phone        String?
   companyName  String?
   role         UserRole
-  status       UserStatus @default(ACTIVE)
+  status       UserStatus     @default(ACTIVE)
+  identities   AuthIdentity[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -104,8 +104,8 @@ model Truck {
 // ------------------------------------------------
 
 model EmptyLeg {
-  id        String @id @default(uuid()) @db.Uuid
-  truckId   String @db.Uuid
+  id      String @id @default(uuid()) @db.Uuid
+  truckId String @db.Uuid
 
   originName      String
   destinationName String
@@ -130,7 +130,7 @@ model EmptyLeg {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  truck    Truck      @relation(fields: [truckId], references: [id])
+  truck    Truck     @relation(fields: [truckId], references: [id])
   stops    LegStop[]
   bookings Booking[]
 
@@ -146,11 +146,11 @@ model LegStop {
   id         String @id @default(uuid()) @db.Uuid
   emptyLegId String @db.Uuid
 
-  sequence   Int
-  placeName  String
-  latitude   Decimal? @db.Decimal(10, 7)
-  longitude  Decimal? @db.Decimal(10, 7)
-  arrivalAt  DateTime?
+  sequence  Int
+  placeName String
+  latitude  Decimal?  @db.Decimal(10, 7)
+  longitude Decimal?  @db.Decimal(10, 7)
+  arrivalAt DateTime?
 
   emptyLeg EmptyLeg @relation(fields: [emptyLegId], references: [id], onDelete: Cascade)
 
@@ -165,7 +165,7 @@ model Load {
   id        String @id @default(uuid()) @db.Uuid
   shipperId String @db.Uuid
 
-  pickupName  String
+  pickupName   String
   deliveryName String
 
   pickupLat   Decimal? @db.Decimal(10, 7)
@@ -203,7 +203,7 @@ model Load {
 // ------------------------------------------------
 
 model Booking {
-  id         String @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
   loadId     String @db.Uuid
   emptyLegId String @db.Uuid
@@ -225,7 +225,7 @@ model Booking {
 
   expiresAt DateTime
 
-  requestedAt DateTime @default(now())
+  requestedAt DateTime  @default(now())
   approvedAt  DateTime?
   pickedUpAt  DateTime?
   completedAt DateTime?
@@ -242,4 +242,23 @@ model Booking {
   @@index([shipperId, status])
   @@index([status, expiresAt])
   @@index([loadId])
+}
+
+enum AuthProvider {
+  GOOGLE
+}
+
+model AuthIdentity {
+  id             String       @id @default(uuid()) @db.Uuid
+  userId         String       @db.Uuid
+  provider       AuthProvider
+  providerUserId String
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@unique([userId, provider])
+  @@index([userId])
 }
