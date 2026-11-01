@@ -1,13 +1,20 @@
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  ApiError,
+  dashboardForRole,
+} from "../../services/authApi";
 
 import { useState } from "react";
 import type { FormEvent } from "react";
+
 import {
-  CheckCircle2,
   Eye,
   EyeOff,
   Package,
   Truck,
 } from "lucide-react";
+
 import { Link, useSearchParams } from "react-router-dom";
 
 import { AuthLayout } from "../../components/layout/AuthLayout";
@@ -32,6 +39,10 @@ type RegistrationErrors = {
 };
 
 export function RegisterPage() {
+  const navigate = useNavigate();
+  const { register } = useAuth();
+
+  const [submitting, setSubmitting] = useState(false);
   const [searchParams] = useSearchParams();
   const requestedRole = searchParams.get("role");
 
@@ -50,8 +61,14 @@ export function RegisterPage() {
   const [errors, setErrors] = useState<RegistrationErrors>({});
   const [notice, setNotice] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
+
+    if (submitting) return;
+
     setNotice("");
 
     const nextErrors: RegistrationErrors = {};
@@ -65,14 +82,20 @@ export function RegisterPage() {
     }
 
     if (company.trim().length < 2) {
-      nextErrors.company = "Enter your company or business name.";
+      nextErrors.company =
+        "Enter your company or business name.";
     }
 
     if (!isValidEmail(email)) {
       nextErrors.email = "Enter a valid email address.";
     }
 
-    if (!/^[6-9]\d{9}$/.test(phone.trim())) {
+    const cleanedPhone = phone.trim();
+
+    if (
+      cleanedPhone &&
+      !/^[6-9]\d{9}$/.test(cleanedPhone)
+    ) {
       nextErrors.phone =
         "Enter a valid 10-digit Indian mobile number.";
     }
@@ -80,11 +103,8 @@ export function RegisterPage() {
     nextErrors.password = validatePassword(password);
 
     if (confirmPassword !== password) {
-      nextErrors.confirmPassword = "Passwords do not match.";
-    }
-
-    if (!acceptedTerms) {
-      nextErrors.terms = "Please acknowledge the demo notice.";
+      nextErrors.confirmPassword =
+        "Passwords do not match.";
     }
 
     setErrors(nextErrors);
@@ -93,11 +113,51 @@ export function RegisterPage() {
       return;
     }
 
-    // Never store passwords or pretend an account was created.
-    setNotice(
-      "Your registration details passed frontend validation. Account creation will be enabled when the backend API is connected in Step 12."
-    );
+    if (!role) return;
+
+    setSubmitting(true);
+
+    try {
+      const authenticatedUser = await register({
+        name: name.trim(),
+        companyName: company.trim(),
+        email: email.trim().toLowerCase(),
+        phone: cleanedPhone || undefined,
+        password,
+        role: role === "shipper"
+          ? "SHIPPER"
+          : "CARRIER",
+      });
+
+      navigate(
+        dashboardForRole(authenticatedUser.role),
+        { replace: true }
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setNotice(error.message);
+
+        const backendErrors = error.fieldErrors;
+
+        setErrors((current) => ({
+          ...current,
+          name: backendErrors.name?.[0],
+          email: backendErrors.email?.[0],
+          company: backendErrors.companyName?.[0],
+          phone: backendErrors.phone?.[0],
+          password: backendErrors.password?.[0],
+          role: backendErrors.role?.[0],
+        }));
+      } else {
+        setNotice(
+          "Unable to create the account. Please try again."
+        );
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
+
 
   return (
     <AuthLayout>
@@ -299,9 +359,12 @@ export function RegisterPage() {
           </p>
         )}
 
-        <Button type="submit" className="w-full">
-          Validate Registration
-          <CheckCircle2 size={17} />
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={submitting}
+        >
+          {submitting ? "Creating Account..." : "Create Account"}
         </Button>
 
         {notice && (

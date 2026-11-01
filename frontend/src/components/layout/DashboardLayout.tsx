@@ -1,3 +1,10 @@
+import {
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
+import { LogOut } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
 
 import { useState } from "react";
 import type { ReactNode } from "react";
@@ -126,6 +133,17 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const config = roleConfig[role];
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const isDemo = location.pathname.startsWith("/demo/");
+
+  function handleLogout() {
+    logout();
+    setSidebarOpen(false);
+    navigate("/login", { replace: true });
+  }
 
   const SidebarContent = () => (
     <>
@@ -178,7 +196,11 @@ export function DashboardLayout({
           return (
             <NavLink
               key={item.label}
-              to={item.to}
+              to={
+                isDemo
+                  ? item.to
+                  : item.to.replace("/demo/", "/app/")
+              }
               end
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
@@ -197,18 +219,45 @@ export function DashboardLayout({
         })}
       </nav>
 
+
       <div className="space-y-4 border-t border-white/10 p-5">
+        {/* Information about demo or authenticated mode */}
         <div className="flex items-start gap-3 rounded-lg bg-white/5 p-3">
           <ShieldCheck
             size={18}
             className="mt-0.5 shrink-0 text-brand"
           />
+
           <p className="text-xs leading-5 text-white/55">
-            Demo workspace. No account is signed in and
-            all dashboard data is illustrative.
+            {isDemo
+              ? "Public demo preview. No authentication is required and all data is illustrative."
+              : "Authenticated account. Dashboard statistics, shipments and bookings remain illustrative until their APIs are connected."}
           </p>
         </div>
 
+        {/* Show account details and logout only for real sessions */}
+        {!isDemo && user && (
+          <div className="border-b border-white/10 pb-4">
+            <p className="mb-1 text-sm font-semibold text-white">
+              {user.name}
+            </p>
+
+            <p className="mb-4 truncate text-xs text-white/50">
+              {user.email}
+            </p>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-xs font-semibold text-white/70 hover:text-white"
+            >
+              <LogOut size={16} />
+              Log Out
+            </button>
+          </div>
+        )}
+
+        {/* Return to public landing page */}
         <Link
           to="/"
           className="flex items-center gap-2 text-xs font-semibold text-white/70 hover:text-white"
@@ -217,6 +266,7 @@ export function DashboardLayout({
           Back to Website
         </Link>
       </div>
+
     </>
   );
 
@@ -275,7 +325,7 @@ export function DashboardLayout({
           </div>
 
           <span className="rounded-full border border-line px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
-            Demo Mode
+            {isDemo ? "Demo Preview" : "Authenticated"}
           </span>
         </header>
 

@@ -6,6 +6,9 @@ import {
   Routes,
 } from "react-router-dom";
 
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./routes/ProtectedRoute";
+
 import { LandingPage } from "./pages/public/LandingPage";
 import { DesignSystemPreview } from "./pages/public/DesignSystemPreview";
 
@@ -18,68 +21,183 @@ import { AdminDashboard } from "./pages/admin/AdminDashboard";
 
 import { MarketplaceScreen } from "./components/marketplace/MarketplaceScreen";
 
+function ShipperOnly({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ProtectedRoute allowedRoles={["SHIPPER"]}>
+      {children}
+    </ProtectedRoute>
+  );
+}
+
+function CarrierOnly({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ProtectedRoute allowedRoles={["CARRIER"]}>
+      {children}
+    </ProtectedRoute>
+  );
+}
+
+function AdminOnly({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ProtectedRoute allowedRoles={["ADMIN"]}>
+      {children}
+    </ProtectedRoute>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Public pages */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+      <AuthProvider>
+        <Routes>
+          {/* Public landing page */}
+          <Route path="/" element={<LandingPage />} />
 
-        {/* Development dashboards */}
-        <Route
-          path="/demo/shipper"
-          element={<ShipperDashboard />}
-        />
-        <Route
-          path="/demo/carrier"
-          element={<CarrierDashboard />}
-        />
-        <Route
-          path="/demo/admin"
-          element={<AdminDashboard />}
-        />
+          {/* Authentication */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        {/* Shipper marketplace */}
-        <Route
-          path="/demo/shipper/loads"
-          element={<MarketplaceScreen screen="loads" />}
-        />
-        <Route
-          path="/demo/shipper/matches"
-          element={<MarketplaceScreen screen="matches" />}
-        />
-        <Route
-          path="/demo/shipper/bookings"
-          element={<MarketplaceScreen screen="bookings" />}
-        />
+          {/* Authenticated shipper workspace */}
+          <Route
+            path="/app/shipper"
+            element={
+              <ShipperOnly>
+                <ShipperDashboard />
+              </ShipperOnly>
+            }
+          />
+          <Route
+            path="/app/shipper/loads"
+            element={
+              <ShipperOnly>
+                <MarketplaceScreen screen="loads" />
+              </ShipperOnly>
+            }
+          />
+          <Route
+            path="/app/shipper/matches"
+            element={
+              <ShipperOnly>
+                <MarketplaceScreen screen="matches" />
+              </ShipperOnly>
+            }
+          />
+          <Route
+            path="/app/shipper/bookings"
+            element={
+              <ShipperOnly>
+                <MarketplaceScreen screen="bookings" />
+              </ShipperOnly>
+            }
+          />
 
-        {/* Carrier marketplace */}
-        <Route
-          path="/demo/carrier/trucks"
-          element={<MarketplaceScreen screen="trucks" />}
-        />
-        <Route
-          path="/demo/carrier/empty-legs"
-          element={<MarketplaceScreen screen="empty-legs" />}
-        />
-        <Route
-          path="/demo/carrier/requests"
-          element={<MarketplaceScreen screen="requests" />}
-        />
+          {/* Authenticated carrier workspace */}
+          <Route
+            path="/app/carrier"
+            element={
+              <CarrierOnly>
+                <CarrierDashboard />
+              </CarrierOnly>
+            }
+          />
+          <Route
+            path="/app/carrier/trucks"
+            element={
+              <CarrierOnly>
+                <MarketplaceScreen screen="trucks" />
+              </CarrierOnly>
+            }
+          />
+          <Route
+            path="/app/carrier/empty-legs"
+            element={
+              <CarrierOnly>
+                <MarketplaceScreen screen="empty-legs" />
+              </CarrierOnly>
+            }
+          />
+          <Route
+            path="/app/carrier/requests"
+            element={
+              <CarrierOnly>
+                <MarketplaceScreen screen="requests" />
+              </CarrierOnly>
+            }
+          />
 
-        {/* Design system */}
-        <Route
-          path="/design-preview"
-          element={<DesignSystemPreview />}
-        />
+          {/* Authenticated admin workspace */}
+          <Route
+            path="/app/admin"
+            element={
+              <AdminOnly>
+                <AdminDashboard />
+              </AdminOnly>
+            }
+          />
 
-        <Route
-          path="*"
-          element={<Navigate to="/" replace />}
-        />
-      </Routes>
+          {/* Existing public development previews */}
+          <Route
+            path="/demo/shipper"
+            element={<ShipperDashboard />}
+          />
+          <Route
+            path="/demo/carrier"
+            element={<CarrierDashboard />}
+          />
+          <Route
+            path="/demo/admin"
+            element={<AdminDashboard />}
+          />
+
+          <Route
+            path="/demo/shipper/loads"
+            element={<MarketplaceScreen screen="loads" />}
+          />
+          <Route
+            path="/demo/shipper/matches"
+            element={<MarketplaceScreen screen="matches" />}
+          />
+          <Route
+            path="/demo/shipper/bookings"
+            element={<MarketplaceScreen screen="bookings" />}
+          />
+
+          <Route
+            path="/demo/carrier/trucks"
+            element={<MarketplaceScreen screen="trucks" />}
+          />
+          <Route
+            path="/demo/carrier/empty-legs"
+            element={<MarketplaceScreen screen="empty-legs" />}
+          />
+          <Route
+            path="/demo/carrier/requests"
+            element={<MarketplaceScreen screen="requests" />}
+          />
+
+          <Route
+            path="/design-preview"
+            element={<DesignSystemPreview />}
+          />
+
+          <Route
+            path="*"
+            element={<Navigate to="/" replace />}
+          />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

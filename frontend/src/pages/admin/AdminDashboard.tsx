@@ -1,4 +1,4 @@
-
+import { useLocation } from "react-router-dom";
 import {
   AlertTriangle,
   CalendarCheck,
@@ -33,17 +33,20 @@ const activities = [
 ];
 
 export function AdminDashboard() {
+  const isDemo = useLocation().pathname.startsWith("/demo/");
   return (
     <DashboardLayout
       role="admin"
       title="MARKETPLACE OVERVIEW."
       description="A unified view of platform activity, marketplace participants, bookings, and operational events."
     >
+
       <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
-        Admin interface preview only. This route
-        is not protected and exposes no real platform
-        records or administrative controls.
+        {isDemo
+          ? "Public admin interface preview. This page contains no real platform records or administrative controls."
+          : "Authenticated admin workspace. All displayed activity is illustrative; live administrative APIs are not connected yet."}
       </div>
+
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <DashboardStat

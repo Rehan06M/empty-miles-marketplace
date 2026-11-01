@@ -1,4 +1,9 @@
-
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  ApiError,
+  dashboardForRole,
+} from "../../services/authApi";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Eye, EyeOff, LockKeyhole } from "lucide-react";
@@ -15,14 +20,24 @@ type LoginErrors = {
 };
 
 export function LoginPage() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
+  const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<LoginErrors>({});
   const [notice, setNotice] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
+
+    if (submitting) return;
+
     setNotice("");
 
     const nextErrors: LoginErrors = {};
@@ -41,12 +56,29 @@ export function LoginPage() {
       return;
     }
 
-    // Step 7: validation only.
-    // Never simulate a successful authenticated session.
-    setNotice(
-      "Form validated. Account sign-in will be enabled when the backend authentication API is connected in Step 12."
-    );
+    setSubmitting(true);
+
+    try {
+      const authenticatedUser = await login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      navigate(
+        dashboardForRole(authenticatedUser.role),
+        { replace: true }
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setNotice(error.message);
+      } else {
+        setNotice("Unable to sign in. Please try again.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
+
 
   return (
     <AuthLayout>
@@ -130,8 +162,12 @@ export function LoginPage() {
           authentication is connected.
         </p>
 
-        <Button type="submit" className="w-full">
-          Sign In
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={submitting}
+        >
+          {submitting ? "Signing In..." : "Sign In"}
         </Button>
 
         {notice && (
@@ -152,11 +188,6 @@ export function LoginPage() {
         >
           Create an account
         </Link>
-      </p>
-
-      <p className="mt-8 border-t border-line pt-5 text-center text-xs text-muted">
-        UI preview only — live account authentication
-        is not enabled yet.
       </p>
     </AuthLayout>
   );
