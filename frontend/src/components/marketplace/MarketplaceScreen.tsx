@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import {
   ArrowRight,
@@ -11,7 +11,7 @@ import {
   Plus,
   Truck,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { DashboardLayout } from "../layout/DashboardLayout";
 import { DashboardPanel } from "../dashboard/DashboardPanel";
@@ -28,6 +28,28 @@ import type {
   DemoLeg,
   DemoLoad,
 } from "../../data/marketplaceDemo";
+
+import {
+  getTrucks,
+  createTruck,
+  updateTruck,
+  deactivateTruck,
+} from "../../services/truckApi";
+
+import {
+  getEmptyLegs,
+  createEmptyLeg,
+  updateEmptyLeg,
+  closeEmptyLeg,
+} from "../../services/emptyLegApi";
+
+import type {
+  Truck as CarrierTruck,
+  EmptyLeg,
+  EquipmentType,
+  CreateTruckInput,
+  CreateEmptyLegInput,
+} from "../../types/carrier";
 
 export type MarketplaceScreenType =
   | "loads"
@@ -425,6 +447,991 @@ function EmptyLegForm() {
   );
 }
 
+
+const equipmentOptions: EquipmentType[] = [
+  "OPEN_BODY",
+  "CONTAINER",
+  "FLATBED",
+  "REFRIGERATED",
+  "OTHER",
+];
+
+function equipmentLabel(value: string) {
+  return value.replaceAll("_", " ");
+}
+
+function messageFrom(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "An unexpected error occurred";
+}
+
+function decimalValue(value: string | null) {
+  return value === null
+    ? "Not specified"
+    : Number(value).toLocaleString("en-IN");
+}
+
+function dateForInput(iso: string) {
+  const date = new Date(iso);
+  const local = new Date(
+    date.getTime() - date.getTimezoneOffset() * 60000
+  );
+  return local.toISOString().slice(0, 16);
+}
+
+function toIso(value: string) {
+  const date = new Date(value);
+
+  if (!value || Number.isNaN(date.getTime())) {
+    throw new Error("Enter a valid date and time");
+  }
+
+  return date.toISOString();
+}
+
+function RealTrucksList() {
+  const [trucks, setTrucks] = useState<CarrierTruck[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const [editing, setEditing] = useState<string | null>(null);
+  const [registrationNumber, setRegistrationNumber] =
+    useState("");
+  const [equipmentType, setEquipmentType] =
+    useState<EquipmentType>("OPEN_BODY");
+  const [maxWeightKg, setMaxWeightKg] = useState("");
+  const [maxVolumeM3, setMaxVolumeM3] = useState("");
+
+  async function refresh() {
+    const data = await getTrucks();
+    setTrucks(data);
+  }
+
+  useEffect(() => {
+    let live = true;
+
+    getTrucks()
+      .then((data) => {
+        if (live) setTrucks(data);
+      })
+      .catch((err: unknown) => {
+        if (live) setError(messageFrom(err));
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  function clearForm() {
+    setEditing(null);
+    setRegistrationNumber("");
+    setEquipmentType("OPEN_BODY");
+    setMaxWeightKg("");
+    setMaxVolumeM3("");
+  }
+
+  function edit(truck: CarrierTruck) {
+    setEditing(truck.id);
+    setRegistrationNumber(truck.registrationNumber);
+    setEquipmentType(truck.equipmentType);
+    setMaxWeightKg(truck.maxWeightKg);
+    setMaxVolumeM3(truck.maxVolumeM3 ?? "");
+    setError("");
+    setNotice("");
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+
+    const weight = Number(maxWeightKg);
+    const volume =
+      maxVolumeM3.trim() === ""
+        ? null
+        : Number(maxVolumeM3);
+
+    if (
+      !Number.isFinite(weight) ||
+      weight <= 0 ||
+      (volume !== null &&
+        (!Number.isFinite(volume) || volume <= 0))
+    ) {
+      setError("Enter valid positive capacities");
+      return;
+    }
+
+    const input: CreateTruckInput = {
+      registrationNumber,
+      equipmentType,
+      maxWeightKg: weight,
+      maxVolumeM3: volume,
+    };
+
+    setSaving(true);
+
+    try {
+      if (editing) {
+        await updateTruck(editing, input);
+      } else {
+        await createTruck(input);
+      }
+
+      clearForm();
+      setNotice("Truck saved in PostgreSQL successfully.");
+
+      try {
+        await refresh();
+      } catch (err) {
+        setError(
+          `Saved, but list refresh failed: ${messageFrom(err)}`
+        );
+      }
+    } catch (err) {
+      setError(messageFrom(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deactivate(truck: CarrierTruck) {
+    if (
+      !window.confirm(
+        `Deactivate ${truck.registrationNumber}?`
+      )
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      await deactivateTruck(truck.id);
+      setNotice("Truck deactivated.");
+
+      try {
+        await refresh();
+      } catch (err) {
+        setError(
+          `Deactivated, but list refresh failed: ${messageFrom(err)}`
+        );
+      }
+    } catch (err) {
+      setError(messageFrom(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[1fr_1.3fr]">
+      <DashboardPanel
+        title={editing ? "Edit Truck" : "Register Truck"}
+        subtitle="Real carrier fleet management"
+      >
+        <form
+          onSubmit={(event) => void submit(event)}
+          className="space-y-4"
+        >
+          <label className="block">
+            <span className={labelStyle}>
+              Registration Number
+            </span>
+            <input
+              className={inputStyle}
+              required
+              value={registrationNumber}
+              onChange={(event) =>
+                setRegistrationNumber(event.target.value)
+              }
+              placeholder="MH12AB1234"
+            />
+          </label>
+
+          <label className="block">
+            <span className={labelStyle}>Equipment</span>
+            <select
+              className={inputStyle}
+              value={equipmentType}
+              onChange={(event) =>
+                setEquipmentType(
+                  event.target.value as EquipmentType
+                )
+              }
+            >
+              {equipmentOptions.map((value) => (
+                <option key={value} value={value}>
+                  {equipmentLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className={labelStyle}>
+              Maximum Weight (kg)
+            </span>
+            <input
+              className={inputStyle}
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              value={maxWeightKg}
+              onChange={(event) =>
+                setMaxWeightKg(event.target.value)
+              }
+            />
+          </label>
+
+          <label className="block">
+            <span className={labelStyle}>
+              Maximum Volume (m³, optional)
+            </span>
+            <input
+              className={inputStyle}
+              type="number"
+              min="0.001"
+              step="0.001"
+              value={maxVolumeM3}
+              onChange={(event) =>
+                setMaxVolumeM3(event.target.value)
+              }
+            />
+          </label>
+
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? "Saving…"
+                : editing
+                  ? "Save Changes"
+                  : "Register Truck"}
+            </Button>
+
+            {editing && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={clearForm}
+              >
+                Cancel Edit
+              </Button>
+            )}
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-red-700">
+              {error}
+            </p>
+          )}
+
+          {notice && (
+            <p
+              role="status"
+              className="text-sm text-emerald-700"
+            >
+              {notice}
+            </p>
+          )}
+        </form>
+      </DashboardPanel>
+
+      <DashboardPanel
+        title="My Trucks"
+        subtitle="Your PostgreSQL-backed fleet"
+      >
+        {loading ? (
+          <p className="text-sm text-muted">
+            Loading trucks…
+          </p>
+        ) : trucks.length === 0 ? (
+          <p className="text-sm text-muted">
+            No trucks registered yet.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {trucks.map((truck) => (
+              <div
+                key={truck.id}
+                className="rounded-lg border border-line p-5"
+              >
+                <Truck size={27} className="text-brand" />
+
+                <h3 className="mt-4 font-semibold text-ink">
+                  {truck.registrationNumber}
+                </h3>
+
+                <p className="mt-2 text-sm text-muted">
+                  {equipmentLabel(truck.equipmentType)}
+                </p>
+
+                <p className="mt-1 text-sm text-muted">
+                  Max load: {decimalValue(truck.maxWeightKg)} kg
+                </p>
+
+                <p className="mt-1 text-sm text-muted">
+                  Max volume: {decimalValue(truck.maxVolumeM3)} m³
+                </p>
+
+                <div className="mt-3">
+                  <Badge
+                    variant={
+                      truck.status === "ACTIVE"
+                        ? "success"
+                        : "neutral"
+                    }
+                  >
+                    {truck.status}
+                  </Badge>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={saving}
+                    onClick={() => edit(truck)}
+                  >
+                    Edit
+                  </Button>
+
+                  {truck.status === "ACTIVE" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={saving}
+                      onClick={() => void deactivate(truck)}
+                    >
+                      Deactivate
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </DashboardPanel>
+    </div>
+  );
+}
+
+
+function RealEmptyLegForm() {
+  const [legs, setLegs] = useState<EmptyLeg[]>([]);
+  const [trucks, setTrucks] = useState<CarrierTruck[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const [editing, setEditing] = useState<string | null>(null);
+  const [truckId, setTruckId] = useState("");
+  const [origin, setOrigin] = useState("Mumbai");
+  const [destination, setDestination] = useState("Pune");
+  const [departure, setDeparture] = useState("");
+  const [arrival, setArrival] = useState("");
+  const [capacity, setCapacity] = useState("");
+  const [volume, setVolume] = useState("");
+  const [detour, setDetour] = useState("0");
+  const [cargo, setCargo] = useState("");
+
+  const [status, setStatus] =
+    useState<"DRAFT" | "ACTIVE">("ACTIVE");
+
+  const activeTrucks = trucks.filter(
+    (truck) => truck.status === "ACTIVE"
+  );
+
+  async function refresh() {
+    const [newLegs, newTrucks] = await Promise.all([
+      getEmptyLegs(),
+      getTrucks(),
+    ]);
+
+    setLegs(newLegs);
+    setTrucks(newTrucks);
+  }
+
+  useEffect(() => {
+    let live = true;
+
+    Promise.all([getEmptyLegs(), getTrucks()])
+      .then(([journeys, truckRecords]) => {
+        if (live) {
+          setLegs(journeys);
+          setTrucks(truckRecords);
+        }
+      })
+      .catch((err: unknown) => {
+        if (live) setError(messageFrom(err));
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  function reset() {
+    setEditing(null);
+    setTruckId("");
+    setOrigin("Mumbai");
+    setDestination("Pune");
+    setDeparture("");
+    setArrival("");
+    setCapacity("");
+    setVolume("");
+    setDetour("0");
+    setCargo("");
+    setStatus("ACTIVE");
+  }
+
+  function edit(leg: EmptyLeg) {
+    setEditing(leg.id);
+    setTruckId(leg.truckId);
+    setOrigin(leg.originName);
+    setDestination(leg.destinationName);
+    setDeparture(dateForInput(leg.departureAt));
+    setArrival(
+      leg.arrivalAt ? dateForInput(leg.arrivalAt) : ""
+    );
+    setCapacity(leg.availableWeightKg);
+    setVolume(leg.availableVolumeM3 ?? "");
+    setDetour(leg.maxDetourKm);
+    setCargo(leg.acceptedCargoTypes.join(", "));
+    setStatus(
+      leg.status === "DRAFT" ? "DRAFT" : "ACTIVE"
+    );
+    setError("");
+    setNotice("");
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+
+    try {
+      const weight = Number(capacity);
+      const volumeValue =
+        volume.trim() === "" ? null : Number(volume);
+      const detourValue = Number(detour);
+
+      if (
+        !truckId ||
+        origin === destination ||
+        !Number.isFinite(weight) ||
+        weight <= 0 ||
+        !Number.isFinite(detourValue) ||
+        detourValue < 0 ||
+        (volumeValue !== null &&
+          (!Number.isFinite(volumeValue) ||
+            volumeValue <= 0))
+      ) {
+        throw new Error(
+          "Check truck selection, route, capacity and detour fields."
+        );
+      }
+
+      const selectedTruck = trucks.find(
+        (truck) => truck.id === truckId
+      );
+
+      if (
+        !selectedTruck ||
+        selectedTruck.status !== "ACTIVE"
+      ) {
+        throw new Error("Choose an active truck.");
+      }
+
+      if (
+        weight > Number(selectedTruck.maxWeightKg)
+      ) {
+        throw new Error(
+          "Available weight exceeds truck capacity."
+        );
+      }
+
+      if (
+        volumeValue !== null &&
+        (
+          selectedTruck.maxVolumeM3 === null ||
+          volumeValue > Number(selectedTruck.maxVolumeM3)
+        )
+      ) {
+        throw new Error(
+          "Available volume exceeds truck capacity."
+        );
+      }
+
+      const payload: CreateEmptyLegInput = {
+        truckId,
+        originName: origin,
+        destinationName: destination,
+        departureAt: toIso(departure),
+        arrivalAt: arrival ? toIso(arrival) : null,
+        availableWeightKg: weight,
+        availableVolumeM3: volumeValue,
+        maxDetourKm: detourValue,
+        acceptedCargoTypes: cargo
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean),
+        status,
+      };
+
+      if (
+        payload.arrivalAt &&
+        new Date(payload.arrivalAt) <=
+          new Date(payload.departureAt)
+      ) {
+        throw new Error(
+          "Arrival must be after departure."
+        );
+      }
+
+      if (
+        status === "ACTIVE" &&
+        new Date(payload.departureAt) <= new Date()
+      ) {
+        throw new Error(
+          "Active journeys require a future departure."
+        );
+      }
+
+      setSaving(true);
+
+      try {
+        if (editing) {
+          // truckId is intentionally excluded.
+          // A journey cannot switch trucks on update.
+          const { truckId: originalTruckId, ...changes } =
+            payload;
+
+          void originalTruckId;
+
+          await updateEmptyLeg(editing, changes);
+        } else {
+          await createEmptyLeg(payload);
+        }
+
+        reset();
+
+        setNotice(
+          status === "DRAFT"
+            ? "Draft saved in PostgreSQL."
+            : "Journey published in PostgreSQL."
+        );
+
+        try {
+          await refresh();
+        } catch (err) {
+          setError(
+            `Saved, but list refresh failed: ${messageFrom(err)}`
+          );
+        }
+      } finally {
+        setSaving(false);
+      }
+    } catch (err) {
+      setError(messageFrom(err));
+    }
+  }
+
+  async function close(leg: EmptyLeg) {
+    if (
+      !window.confirm(
+        `Close journey ${leg.originName} → ${leg.destinationName}?`
+      )
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      await closeEmptyLeg(leg.id);
+      setNotice("Journey closed.");
+
+      try {
+        await refresh();
+      } catch (err) {
+        setError(
+          `Closed, but list refresh failed: ${messageFrom(err)}`
+        );
+      }
+    } catch (err) {
+      setError(messageFrom(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+      <DashboardPanel
+        title={
+          editing
+            ? "Edit Empty Leg"
+            : "Publish an Empty Leg"
+        }
+        subtitle="Describe an existing truck journey"
+      >
+        {loading ? (
+          <p className="text-sm text-muted">Loading…</p>
+        ) : activeTrucks.length === 0 && !editing ? (
+          <p className="text-sm text-muted">
+            No active truck found. Register one in My Trucks
+            first.
+          </p>
+        ) : (
+          <form
+            onSubmit={(event) => void submit(event)}
+            className="space-y-4"
+          >
+            <label className="block">
+              <span className={labelStyle}>
+                Truck Registration
+              </span>
+              <select
+                className={inputStyle}
+                required
+                disabled={editing !== null}
+                value={truckId}
+                onChange={(event) =>
+                  setTruckId(event.target.value)
+                }
+              >
+                <option value="">Select your truck</option>
+                {activeTrucks.map((truck) => (
+                  <option key={truck.id} value={truck.id}>
+                    {truck.registrationNumber} —{" "}
+                    {equipmentLabel(truck.equipmentType)}
+                  </option>
+                ))}
+                {editing &&
+                  !activeTrucks.some(
+                    (truck) => truck.id === truckId
+                  ) && (
+                    <option value={truckId}>
+                      Original truck (inactive)
+                    </option>
+                  )}
+              </select>
+            </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label>
+                <span className={labelStyle}>Origin</span>
+                <select
+                  className={inputStyle}
+                  value={origin}
+                  onChange={(event) =>
+                    setOrigin(event.target.value)
+                  }
+                >
+                  {locations.map((city) => (
+                    <option key={city}>{city}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span className={labelStyle}>
+                  Destination
+                </span>
+                <select
+                  className={inputStyle}
+                  value={destination}
+                  onChange={(event) =>
+                    setDestination(event.target.value)
+                  }
+                >
+                  {locations.map((city) => (
+                    <option key={city}>{city}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label>
+                <span className={labelStyle}>
+                  Available Capacity (kg)
+                </span>
+                <input
+                  className={inputStyle}
+                  required
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={capacity}
+                  onChange={(event) =>
+                    setCapacity(event.target.value)
+                  }
+                />
+              </label>
+
+              <label>
+                <span className={labelStyle}>
+                  Available Volume (m³, optional)
+                </span>
+                <input
+                  className={inputStyle}
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  value={volume}
+                  onChange={(event) =>
+                    setVolume(event.target.value)
+                  }
+                />
+              </label>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label>
+                <span className={labelStyle}>
+                  Departure
+                </span>
+                <input
+                  className={inputStyle}
+                  required
+                  type="datetime-local"
+                  value={departure}
+                  onChange={(event) =>
+                    setDeparture(event.target.value)
+                  }
+                />
+              </label>
+
+              <label>
+                <span className={labelStyle}>
+                  Arrival (optional)
+                </span>
+                <input
+                  className={inputStyle}
+                  type="datetime-local"
+                  value={arrival}
+                  onChange={(event) =>
+                    setArrival(event.target.value)
+                  }
+                />
+              </label>
+            </div>
+
+            <label className="block">
+              <span className={labelStyle}>
+                Maximum Detour (km)
+              </span>
+              <input
+                className={inputStyle}
+                type="number"
+                min="0"
+                max="1000"
+                step="0.01"
+                value={detour}
+                onChange={(event) =>
+                  setDetour(event.target.value)
+                }
+              />
+            </label>
+
+            <label className="block">
+              <span className={labelStyle}>
+                Accepted Cargo Types
+                (comma separated)
+              </span>
+              <input
+                className={inputStyle}
+                value={cargo}
+                onChange={(event) =>
+                  setCargo(event.target.value)
+                }
+                placeholder="General goods, textiles"
+              />
+            </label>
+
+            <label className="block">
+              <span className={labelStyle}>
+                Listing Status
+              </span>
+              <select
+                className={inputStyle}
+                value={status}
+                disabled={
+                  editing !== null &&
+                  legs.find(
+                    (leg) => leg.id === editing
+                  )?.status === "ACTIVE"
+                }
+                onChange={(event) =>
+                  setStatus(
+                    event.target.value as
+                      | "DRAFT"
+                      | "ACTIVE"
+                  )
+                }
+              >
+                <option value="DRAFT">Save Draft</option>
+                <option value="ACTIVE">
+                  Publish Active
+                </option>
+              </select>
+            </label>
+
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" disabled={saving}>
+                {saving
+                  ? "Saving…"
+                  : editing
+                    ? "Save Changes"
+                    : "Save Journey"}
+              </Button>
+
+              {editing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving}
+                  onClick={reset}
+                >
+                  Cancel Edit
+                </Button>
+              )}
+            </div>
+          </form>
+        )}
+
+        {error && (
+          <p
+            role="alert"
+            className="mt-4 text-sm text-red-700"
+          >
+            {error}
+          </p>
+        )}
+
+        {notice && (
+          <p
+            role="status"
+            className="mt-4 text-sm text-emerald-700"
+          >
+            {notice}
+          </p>
+        )}
+      </DashboardPanel>
+
+      <DashboardPanel
+        title="My Empty Legs"
+        subtitle="Saved truck journeys"
+      >
+        {loading ? (
+          <p className="text-sm text-muted">
+            Loading journeys…
+          </p>
+        ) : legs.length === 0 ? (
+          <p className="text-sm text-muted">
+            No journeys published yet.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {legs.map((leg) => (
+              <div
+                key={leg.id}
+                className="rounded-lg border border-line p-4"
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="font-mono text-[10px] text-muted">
+                    {leg.id.slice(0, 8)}
+                  </span>
+
+                  <Badge
+                    variant={
+                      leg.status === "ACTIVE"
+                        ? "success"
+                        : leg.status === "DRAFT"
+                          ? "info"
+                          : "neutral"
+                    }
+                  >
+                    {leg.status}
+                  </Badge>
+                </div>
+
+                <RouteLabel
+                  origin={leg.originName}
+                  destination={leg.destinationName}
+                />
+
+                <p className="mt-3 text-sm text-muted">
+                  {leg.truck?.registrationNumber ??
+                    leg.truckId}
+                  {" · "}
+                  {decimalValue(leg.availableWeightKg)} kg
+                  {" · "}
+                  {decimalValue(leg.availableVolumeM3)} m³
+                </p>
+
+                <p className="mt-1 text-xs text-muted">
+                  Departure:{" "}
+                  {new Date(
+                    leg.departureAt
+                  ).toLocaleString("en-IN")}
+                </p>
+
+                <p className="mt-1 text-xs text-muted">
+                  Detour:{" "}
+                  {decimalValue(leg.maxDetourKm)} km
+                </p>
+
+                {(leg.status === "ACTIVE" ||
+                  leg.status === "DRAFT") && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={saving}
+                      onClick={() => edit(leg)}
+                    >
+                      Edit
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={saving}
+                      onClick={() => void close(leg)}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </DashboardPanel>
+    </div>
+  );
+}
+
+
 function MatchResults() {
   return (
     <div className="space-y-5">
@@ -674,10 +1681,19 @@ const screenConfig: Record<
   },
 };
 
+
 export function MarketplaceScreen({
   screen,
 }: MarketplaceScreenProps) {
   const config = screenConfig[screen];
+
+  const isDemo = useLocation().pathname.startsWith(
+    "/demo/"
+  );
+
+  const realCarrierScreen =
+    !isDemo &&
+    (screen === "trucks" || screen === "empty-legs");
 
   return (
     <DashboardLayout
@@ -685,22 +1701,36 @@ export function MarketplaceScreen({
       title={config.title}
       description={config.description}
     >
-      <DemoNotice>
-        Step 9 frontend prototype. Data is temporary,
-        example matches and prices are illustrative,
-        and no records are saved to the backend.
-      </DemoNotice>
+      {!realCarrierScreen && (
+        <DemoNotice>
+          Step 9 frontend prototype. Data is temporary,
+          example matches and prices are illustrative,
+          and no records are saved to the backend.
+        </DemoNotice>
+      )}
 
       {screen === "loads" && <LoadForm />}
+
       {screen === "matches" && <MatchResults />}
+
       {screen === "bookings" && (
         <BookingList carrierView={false} />
       )}
-      {screen === "trucks" && <TrucksList />}
-      {screen === "empty-legs" && <EmptyLegForm />}
+
+      {screen === "trucks" &&
+        (isDemo ? <TrucksList /> : <RealTrucksList />)}
+
+      {screen === "empty-legs" &&
+        (isDemo ? (
+          <EmptyLegForm />
+        ) : (
+          <RealEmptyLegForm />
+        ))}
+
       {screen === "requests" && (
         <BookingList carrierView={true} />
       )}
     </DashboardLayout>
   );
 }
+
