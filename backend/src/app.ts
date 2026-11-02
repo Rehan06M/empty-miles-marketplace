@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import truckRoutes from "./modules/trucks/truck.routes.js";
 import emptyLegRoutes from "./modules/empty-legs/emptyLeg.routes.js";
+import loadRoutes from "./modules/loads/load.routes.js";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 
@@ -36,6 +37,8 @@ app.use("/api/v1/auth/google", googleAuthRoutes);
 app.use("/api/v1/trucks", truckRoutes);
 // Carrier empty-leg management
 app.use("/api/v1/empty-legs", emptyLegRoutes);
+// Shipper load management
+app.use("/api/v1/loads", loadRoutes);
 
 // Unknown API routes
 app.use((_req, res) => {

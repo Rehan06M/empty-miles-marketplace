@@ -20,6 +20,7 @@ import { CarrierDashboard } from "./pages/carrier/CarrierDashboard";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 
 import { MarketplaceScreen } from "./components/marketplace/MarketplaceScreen";
+import { ShipperLoadsPage } from "./pages/shipper/ShipperLoadsPage";
 
 function ShipperOnly({
   children,
@@ -82,7 +83,7 @@ function App() {
             path="/app/shipper/loads"
             element={
               <ShipperOnly>
-                <MarketplaceScreen screen="loads" />
+                <ShipperLoadsPage />
               </ShipperOnly>
             }
           />
