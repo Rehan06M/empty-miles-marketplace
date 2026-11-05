@@ -20,6 +20,7 @@ import { CarrierDashboard } from "./pages/carrier/CarrierDashboard";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 
 import { MarketplaceScreen } from "./components/marketplace/MarketplaceScreen";
+import { RouteMapPage } from "./pages/maps/RouteMapPage";
 import { ShipperLoadsPage } from "./pages/shipper/ShipperLoadsPage";
 
 function ShipperOnly({
@@ -88,6 +89,14 @@ function App() {
             }
           />
           <Route
+            path="/app/shipper/map"
+            element={
+              <ShipperOnly>
+                <RouteMapPage role="shipper" />
+              </ShipperOnly>
+            }
+          />
+          <Route
             path="/app/shipper/matches"
             element={
               <ShipperOnly>
@@ -126,6 +135,14 @@ function App() {
             element={
               <CarrierOnly>
                 <MarketplaceScreen screen="empty-legs" />
+              </CarrierOnly>
+            }
+          />
+          <Route
+            path="/app/carrier/map"
+            element={
+              <CarrierOnly>
+                <RouteMapPage role="carrier" />
               </CarrierOnly>
             }
           />

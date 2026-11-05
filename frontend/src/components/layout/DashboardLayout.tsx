@@ -17,6 +17,7 @@ import {
   Menu,
   Package,
   Route,
+  MapPinned,
   Settings2,
   ShieldCheck,
   Truck,
@@ -63,6 +64,11 @@ const roleConfig: Record<
         to: "/demo/shipper/loads",
       },
       {
+        label: "Route Map",
+        icon: MapPinned,
+        to: "/demo/shipper/map",
+      },
+      {
         label: "Find Matches",
         icon: Route,
         to: "/demo/shipper/matches",
@@ -95,6 +101,11 @@ const roleConfig: Record<
         label: "Empty Legs",
         icon: Route,
         to: "/demo/carrier/empty-legs",
+      },
+      {
+        label: "Route Map",
+        icon: MapPinned,
+        to: "/demo/carrier/map",
       },
       {
         label: "Booking Requests",
@@ -173,50 +184,52 @@ export function DashboardLayout({
         aria-label={`${config.label} navigation`}
         className="flex-1 space-y-1 px-3"
       >
-        {config.items.map((item) => {
-          const Icon = item.icon;
+        {config.items
+          .filter((item) => !isDemo || item.label !== "Route Map")
+          .map((item) => {
+            const Icon = item.icon;
 
-          if (!item.to) {
+            if (!item.to) {
+              return (
+                <div
+                  key={item.label}
+                  aria-disabled="true"
+                  title="Available in a future step"
+                  className="flex cursor-not-allowed items-center gap-3 rounded-lg px-4 py-3 text-sm text-white/35"
+                >
+                  <Icon size={19} strokeWidth={1.8} />
+                  <span>{item.label}</span>
+                  <span className="ml-auto text-[9px] uppercase">
+                    Soon
+                  </span>
+                </div>
+              );
+            }
+
             return (
-              <div
+              <NavLink
                 key={item.label}
-                aria-disabled="true"
-                title="Available in a future step"
-                className="flex cursor-not-allowed items-center gap-3 rounded-lg px-4 py-3 text-sm text-white/35"
+                to={
+                  isDemo
+                    ? item.to
+                    : item.to.replace("/demo/", "/app/")
+                }
+                end
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  [
+                    "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-brand text-white"
+                      : "text-white/65 hover:bg-white/10 hover:text-white",
+                  ].join(" ")
+                }
               >
                 <Icon size={19} strokeWidth={1.8} />
-                <span>{item.label}</span>
-                <span className="ml-auto text-[9px] uppercase">
-                  Soon
-                </span>
-              </div>
+                {item.label}
+              </NavLink>
             );
-          }
-
-          return (
-            <NavLink
-              key={item.label}
-              to={
-                isDemo
-                  ? item.to
-                  : item.to.replace("/demo/", "/app/")
-              }
-              end
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                [
-                  "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-brand text-white"
-                    : "text-white/65 hover:bg-white/10 hover:text-white",
-                ].join(" ")
-              }
-            >
-              <Icon size={19} strokeWidth={1.8} />
-              {item.label}
-            </NavLink>
-          );
-        })}
+          })}
       </nav>
 
 
