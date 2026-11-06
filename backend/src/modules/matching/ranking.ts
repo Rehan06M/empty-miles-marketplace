@@ -14,6 +14,7 @@ export type EligibleCandidate = {
 
   additionalDistanceKm: number;
   additionalDurationMinutes: number;
+  sharedLoadedDistanceKm: number;
 
   estimatedPickupAt: string;
   estimatedDeliveryAt: string;

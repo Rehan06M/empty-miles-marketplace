@@ -7,6 +7,7 @@ import {
     MapPin,
     Clock3,
     AlertTriangle,
+    Leaf,
 } from "lucide-react";
 
 import { Link } from "react-router-dom";
@@ -309,6 +310,221 @@ function PricingBreakdown({
 }
 
 
+function EmissionsBreakdown({
+    match,
+}: {
+    match: EligibleMatch;
+}) {
+    const emissions = match.emissions;
+    const assumptions = emissions.assumptions;
+
+    const hasSavings =
+        emissions.netAvoidedCo2Kg > 0;
+
+    const hasIncrease =
+        emissions.netAvoidedCo2Kg < 0;
+
+    const headline = hasSavings
+        ? "Potential CO₂ Avoided"
+        : hasIncrease
+            ? "Estimated Additional CO₂"
+            : "No Estimated Net CO₂ Change";
+
+    const headlineValue = hasSavings
+        ? emissions.co2SavedKg
+        : emissions.additionalCo2Kg;
+
+    return (
+        <div className="mt-5 rounded-xl border border-line bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Leaf
+                        size={21}
+                        className="text-emerald-700"
+                    />
+
+                    <h3 className="text-sm font-semibold text-ink">
+                        Environmental Impact Estimate
+                    </h3>
+                </div>
+
+                <Badge variant="info">
+                    Illustrative Estimate
+                </Badge>
+            </div>
+
+            <div className="mt-5 rounded-lg bg-canvas p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                    {headline}
+                </p>
+
+                <p
+                    className={[
+                        "mt-2 text-3xl font-semibold",
+                        hasSavings
+                            ? "text-emerald-700"
+                            : hasIncrease
+                                ? "text-amber-700"
+                                : "text-ink",
+                    ].join(" ")}
+                >
+                    {headlineValue.toFixed(2)}
+                    <span className="ml-2 text-sm font-medium">
+                        kg CO₂
+                    </span>
+                </p>
+
+                <p className="mt-2 text-xs leading-5 text-muted">
+                    {hasSavings
+                        ? `${emissions.savingsPercentage.toFixed(2)}% lower than the modeled dedicated-trip emissions.`
+                        : hasIncrease
+                            ? `${Math.abs(emissions.savingsPercentage).toFixed(2)}% higher than the modeled dedicated-trip emissions.`
+                            : "The two modeled scenarios have equal emissions."}
+                </p>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border border-line p-3">
+                    <p className="text-xs text-muted">
+                        Separate dedicated trip
+                    </p>
+
+                    <p className="mt-2 text-xl font-semibold text-ink">
+                        {emissions.dedicatedCo2Kg.toFixed(2)}
+                        <span className="ml-1 text-xs font-normal text-muted">
+                            kg CO₂
+                        </span>
+                    </p>
+
+                    <p className="mt-2 text-xs text-muted">
+                        {emissions.dedicatedFuelLitres.toFixed(2)}
+                        {" estimated litres of diesel"}
+                    </p>
+                </div>
+
+                <div className="rounded-lg border border-line p-3">
+                    <p className="text-xs text-muted">
+                        Extra emissions using existing truck
+                    </p>
+
+                    <p className="mt-2 text-xl font-semibold text-ink">
+                        {emissions.sharedIncrementalCo2Kg.toFixed(2)}
+                        <span className="ml-1 text-xs font-normal text-muted">
+                            kg CO₂
+                        </span>
+                    </p>
+
+                    <p className="mt-2 text-xs text-muted">
+                        {emissions.sharedIncrementalFuelLitres.toFixed(2)}
+                        {" estimated additional litres"}
+                    </p>
+                </div>
+            </div>
+
+            <details className="mt-5 border-t border-line pt-4">
+                <summary className="cursor-pointer text-sm font-semibold text-brand">
+                    View CO₂ calculation and assumptions
+                </summary>
+
+                <div className="mt-4 space-y-3 text-xs leading-5 text-muted">
+                    <p>
+                        Dedicated shipment distance:{" "}
+                        <strong>
+                            {emissions.dedicatedDistanceKm.toFixed(2)} km
+                        </strong>
+                    </p>
+
+                    <p>
+                        Additional truck detour:{" "}
+                        <strong>
+                            {emissions.additionalDetourKm.toFixed(2)} km
+                        </strong>
+                    </p>
+
+                    <p>
+                        Pickup-to-delivery distance on shared journey:{" "}
+                        <strong>
+                            {emissions.sharedLoadedDistanceKm.toFixed(2)} km
+                        </strong>
+                    </p>
+
+                    <p>
+                        Shipment weight:{" "}
+                        <strong>
+                            {emissions.loadWeightTonnes.toFixed(2)}
+                            {" tonnes"}
+                        </strong>
+                    </p>
+
+                    <div className="space-y-2 border-t border-line pt-3">
+                        <p className="font-semibold text-ink">
+                            Model assumptions
+                        </p>
+
+                        <p>
+                            Diesel CO₂ factor:{" "}
+                            {assumptions.dieselCo2KgPerLitre}
+                            {" kg CO₂ per litre"}
+                        </p>
+
+                        <p>
+                            Baseline fuel consumption:{" "}
+                            {assumptions.baseFuelLitresPerKm}
+                            {" L/km"}
+                        </p>
+
+                        <p>
+                            Additional load-related fuel consumption:{" "}
+                            {assumptions.extraFuelLitresPerTonneKm}
+                            {" L/tonne-km"}
+                        </p>
+                    </div>
+
+                    <div className="space-y-2 border-t border-line pt-3">
+                        <p className="font-semibold text-ink">
+                            Calculation method
+                        </p>
+
+                        <p>
+                            Dedicated emissions = modeled dedicated
+                            diesel use × diesel CO₂ factor.
+                        </p>
+
+                        <p>
+                            Shared incremental emissions =
+                            additional detour fuel + load-related
+                            fuel consumption on the existing journey.
+                        </p>
+
+                        <p>
+                            Net avoided emissions = dedicated
+                            emissions − shared incremental emissions.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2 border-t border-line pt-3">
+                        <p className="font-semibold text-ink">
+                            Limitations
+                        </p>
+
+                        {emissions.limitations.map((limitation) => (
+                            <p key={limitation}>
+                                • {limitation}
+                            </p>
+                        ))}
+                    </div>
+                </div>
+            </details>
+
+            <p className="mt-4 text-xs leading-5 text-muted">
+                Estimated tailpipe CO₂ only. This is not a
+                verified environmental saving, full lifecycle
+                footprint, or carbon credit.
+            </p>
+        </div>
+    );
+}
+
 function MatchCard({
     match,
 }: {
@@ -463,6 +679,7 @@ function MatchCard({
 
             <ScoreBreakdown match={match} />
             <PricingBreakdown match={match} />
+            <EmissionsBreakdown match={match} />
 
             <p className="mt-4 text-xs text-muted">
                 This candidate passed the implemented hard eligibility
@@ -635,6 +852,14 @@ export function ShipperMatchesPage() {
                         <div className="rounded-xl border border-line bg-white p-4">
                             <p className="text-sm font-semibold text-ink">
                                 Price-aware estimated match ranking
+                            </p>
+
+                            <p className="mt-2 text-xs leading-5 text-muted">
+                                Each eligible truck also includes an illustrative
+                                CO₂ impact comparison between a separate dedicated
+                                shipment trip and the additional emissions of using
+                                existing truck capacity. This environmental estimate
+                                does not change the 100-point ranking.
                             </p>
 
                             <p className="mt-2 text-xs leading-5 text-muted">

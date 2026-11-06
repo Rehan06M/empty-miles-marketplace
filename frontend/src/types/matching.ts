@@ -1,124 +1,161 @@
 
+export type EmissionsEstimate = {
+    estimateType: "ILLUSTRATIVE";
+    emissionBoundary: "TAILPIPE_CO2";
+
+    dedicatedDistanceKm: number;
+    additionalDetourKm: number;
+    sharedLoadedDistanceKm: number;
+    loadWeightTonnes: number;
+
+    dedicatedFuelLitres: number;
+    sharedIncrementalFuelLitres: number;
+
+    dedicatedCo2Kg: number;
+    sharedIncrementalCo2Kg: number;
+
+    netAvoidedCo2Kg: number;
+    co2SavedKg: number;
+    additionalCo2Kg: number;
+    savingsPercentage: number;
+
+    assumptions: {
+        dieselCo2KgPerLitre: number;
+        baseFuelLitresPerKm: number;
+        extraFuelLitresPerTonneKm: number;
+    };
+
+    limitations: string[];
+};
+
 export type PricingEstimate = {
-  currency: "INR";
-  estimateType: "ILLUSTRATIVE";
+    currency: "INR";
+    estimateType: "ILLUSTRATIVE";
 
-  dedicatedDistanceKm: number;
-  loadWeightTonnes: number;
+    dedicatedDistanceKm: number;
+    loadWeightTonnes: number;
 
-  dedicatedPriceInr: number;
-  incrementalDetourCostInr: number;
+    dedicatedPriceInr: number;
+    incrementalDetourCostInr: number;
 
-  carrierEarningsInr: number;
-  platformFeeInr: number;
-  marketplacePriceInr: number;
+    carrierEarningsInr: number;
+    platformFeeInr: number;
+    marketplacePriceInr: number;
 
-  shipperSavingsInr: number;
-  savingsPercentage: number;
+    shipperSavingsInr: number;
+    savingsPercentage: number;
 
-  assumptions: {
-    dedicatedDispatchInr: number;
-    dedicatedPerKmInr: number;
-    dedicatedPerTonneKmInr: number;
-    carrierBaseInr: number;
-    carrierPerTonneKmInr: number;
-    detourPerKmInr: number;
-    detourPerMinuteInr: number;
-    platformFeeRate: number;
-  };
+    assumptions: {
+        dedicatedDispatchInr: number;
+        dedicatedPerKmInr: number;
+        dedicatedPerTonneKmInr: number;
+        carrierBaseInr: number;
+        carrierPerTonneKmInr: number;
+        detourPerKmInr: number;
+        detourPerMinuteInr: number;
+        platformFeeRate: number;
+    };
 
-  limitations: string[];
+    limitations: string[];
 };
 
 export type RankingBreakdown = {
-  rank: number;
+    rank: number;
 
-  routePoints: number;
-  timePoints: number;
-  capacityPoints: number;
-  pricePoints: number;
+    routePoints: number;
+    timePoints: number;
+    capacityPoints: number;
+    pricePoints: number;
 
-  prePricePoints: number;
-  prePriceMaximum: 80;
+    prePricePoints: number;
+    prePriceMaximum: 80;
 
-  finalScore: number;
+    finalScore: number;
 
-  explanations: string[];
+    explanations: string[];
 };
 
 export type EligibleMatch = {
-  emptyLegId: string;
-  truckRegistration: string;
-  equipmentType: string;
+    emptyLegId: string;
+    truckRegistration: string;
+    equipmentType: string;
 
-  originName: string;
-  destinationName: string;
-  departureAt: string;
+    originName: string;
+    destinationName: string;
+    departureAt: string;
 
-  availableWeightKg: number;
-  availableVolumeM3: number;
+    availableWeightKg: number;
+    availableVolumeM3: number;
 
-  maxDetourKm: number;
-  additionalDistanceKm: number;
-  additionalDurationMinutes: number;
+    maxDetourKm: number;
+    additionalDistanceKm: number;
+    additionalDurationMinutes: number;
 
-  estimatedPickupAt: string;
-  estimatedDeliveryAt: string;
+    estimatedPickupAt: string;
+    estimatedDeliveryAt: string;
 
-  approximateLocations: boolean;
+    approximateLocations: boolean;
 
-  locationVerification:
+    locationVerification:
     | "PROVISIONAL"
     | "EXACT_COORDINATES";
 
-  explanations: string[];
+    explanations: string[];
 
-  ranking: RankingBreakdown;
-  pricing: PricingEstimate;
+    ranking: RankingBreakdown;
+    pricing: PricingEstimate;
+    emissions: EmissionsEstimate;
 };
 
 export type MatchingChecks = {
-  retrievedJourneys: number;
-  prefilteredCandidates: number;
+    retrievedJourneys: number;
+    prefilteredCandidates: number;
 
-  routingChecks: number;
-  routingFailures: number;
-  missingCoordinates: number;
+    routingChecks: number;
+    routingFailures: number;
+    missingCoordinates: number;
 
-  truncated: boolean;
-  partialResults: boolean;
+    truncated: boolean;
+    partialResults: boolean;
 
-  eligibleBeforeRanking: number;
-  returnedMatches: number;
+    eligibleBeforeRanking: number;
+    returnedMatches: number;
 };
 
 export type MatchingRankingInfo = {
-  basis: "FULL_ESTIMATED";
+    basis: "FULL_ESTIMATED";
 
-  weights: {
-    route: 35;
-    time: 25;
-    capacity: 20;
-    price: 20;
-  };
+    weights: {
+        route: 35;
+        time: 25;
+        capacity: 20;
+        price: 20;
+    };
 
-  currentMaximum: 100;
-  finalMaximum: 100;
+    currentMaximum: 100;
+    finalMaximum: 100;
 
-  priceComponentAvailable: true;
-  finalRankingAvailable: true;
+    priceComponentAvailable: true;
+    finalRankingAvailable: true;
 
-  priceEstimateType: "ILLUSTRATIVE";
+    priceEstimateType: "ILLUSTRATIVE";
 
-  method: string;
+    method: string;
 };
 
 export type MatchingResponse = {
-  loadId: string;
-  matches: EligibleMatch[];
+    loadId: string;
+    matches: EligibleMatch[];
 
-  checks: MatchingChecks;
-  ranking: MatchingRankingInfo;
+    checks: MatchingChecks;
+    ranking: MatchingRankingInfo;
 
-  message: string;
+    emissions: {
+        estimateType: "ILLUSTRATIVE";
+        emissionBoundary: "TAILPIPE_CO2";
+        methodology: string;
+        rankingImpact: "NONE";
+    };
+
+    message: string;
 };

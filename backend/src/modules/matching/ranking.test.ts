@@ -55,6 +55,7 @@ function makeCandidate(
     maxDetourKm: 40,
     additionalDistanceKm: 10,
     additionalDurationMinutes: 20,
+    sharedLoadedDistanceKm: 70,
 
     estimatedPickupAt:
       "2026-11-10T04:00:00.000Z",

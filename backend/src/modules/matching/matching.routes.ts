@@ -1,10 +1,14 @@
 
+
 import {
     rankEligibleMatches,
 } from "./ranking.js";
 import {
     rankPricedMatches,
 } from "../pricing/pricing.js";
+import {
+    calculateEmissions,
+} from "../emissions/emissions.js";
 
 import type {
     EligibleCandidate,
@@ -123,6 +127,7 @@ type RoadRoute = {
     durationSeconds: number;
     geometry: Point[];
     segmentDurations: number[];
+    segmentDistancesMetres: number[];
 };
 
 class ProviderError extends Error { }
@@ -211,6 +216,11 @@ async function fetchRoadRoute(
         segmentDurations:
             feature.properties.segments.map(
                 (segment) => segment.duration
+            ),
+
+        segmentDistancesMetres:
+            feature.properties.segments.map(
+                (segment) => segment.distance
             ),
     };
 }
@@ -604,6 +614,8 @@ router.get("/loads/:loadId", async (req, res, next) => {
                 additionalDistanceKm: round2(extraKm),
                 additionalDurationMinutes:
                     round2(additionalMinutes),
+                sharedLoadedDistanceKm:
+                    via.segmentDistancesMetres[1] / 1000,
                 estimatedPickupAt:
                     new Date(pickupMs).toISOString(),
                 estimatedDeliveryAt:
@@ -707,13 +719,39 @@ router.get("/loads/:loadId", async (req, res, next) => {
                     5
                 );
 
+
+        const matchesWithEmissions =
+            rankedMatches.map((match) => {
+                if (dedicatedDistanceKm === null) {
+                    throw new Error(
+                        "Dedicated route distance is unavailable"
+                    );
+                }
+
+                const emissions = calculateEmissions({
+                    dedicatedDistanceKm,
+                    additionalDetourKm:
+                        match.additionalDistanceKm,
+                    sharedLoadedDistanceKm:
+                        match.sharedLoadedDistanceKm,
+                    loadWeightKg:
+                        load.weightKg.toNumber(),
+                });
+
+                return {
+                    ...match,
+                    emissions,
+                };
+            });
+
+
         res.json({
             success: true,
 
             data: {
                 loadId: load.id,
 
-                matches: rankedMatches,
+                matches: matchesWithEmissions,
 
                 checks: {
                     retrievedJourneys: legs.length,
@@ -758,6 +796,13 @@ router.get("/loads/:loadId", async (req, res, next) => {
 
                     method:
                         "Eligible candidates are ranked by route fit, deadline slack, capacity utilization and model-estimated price advantage. Prices are not binding quotations.",
+                },
+                emissions: {
+                    estimateType: "ILLUSTRATIVE",
+                    emissionBoundary: "TAILPIPE_CO2",
+                    methodology:
+                        "Dedicated shipment-trip emissions minus incremental emissions from additional detour driving and carrying the shipment on the existing truck route.",
+                    rankingImpact: "NONE",
                 },
 
                 message:
