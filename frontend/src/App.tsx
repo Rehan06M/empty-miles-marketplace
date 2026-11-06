@@ -23,6 +23,7 @@ import { MarketplaceScreen } from "./components/marketplace/MarketplaceScreen";
 import { RouteMapPage } from "./pages/maps/RouteMapPage";
 import { RoadAnalysisPage } from "./pages/maps/RoadAnalysisPage";
 import { ShipperLoadsPage } from "./pages/shipper/ShipperLoadsPage";
+import { ShipperMatchesPage } from "./pages/shipper/ShipperMatchesPage";
 
 function ShipperOnly({
   children,
@@ -109,7 +110,7 @@ function App() {
             path="/app/shipper/matches"
             element={
               <ShipperOnly>
-                <MarketplaceScreen screen="matches" />
+                <ShipperMatchesPage />
               </ShipperOnly>
             }
           />

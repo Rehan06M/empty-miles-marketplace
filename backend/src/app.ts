@@ -6,6 +6,7 @@ import truckRoutes from "./modules/trucks/truck.routes.js";
 import emptyLegRoutes from "./modules/empty-legs/emptyLeg.routes.js";
 import loadRoutes from "./modules/loads/load.routes.js";
 import routingRoutes from "./modules/routing/routing.routes.js";
+import matchingRoutes from "./modules/matching/matching.routes.js";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 
@@ -42,6 +43,8 @@ app.use("/api/v1/empty-legs", emptyLegRoutes);
 app.use("/api/v1/loads", loadRoutes);
 // Road route geometry and detour previews
 app.use("/api/v1/routing", routingRoutes);
+// Shipper-to-carrier hard eligibility matching
+app.use("/api/v1/matching", matchingRoutes);
 
 // Unknown API routes
 app.use((_req, res) => {
