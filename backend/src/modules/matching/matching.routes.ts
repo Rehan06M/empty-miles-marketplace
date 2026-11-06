@@ -1,4 +1,11 @@
 
+import {
+    rankEligibleMatches,
+} from "./ranking.js";
+
+import type {
+    EligibleCandidate,
+} from "./ranking.js";
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
@@ -434,24 +441,7 @@ router.get("/loads/:loadId", async (req, res, next) => {
             cheapCandidates.length > candidates.length ||
             legs.length === 200;
 
-        const matches: Array<{
-            emptyLegId: string;
-            truckRegistration: string;
-            equipmentType: string;
-            originName: string;
-            destinationName: string;
-            departureAt: string;
-            availableWeightKg: number;
-            availableVolumeM3: number;
-            maxDetourKm: number;
-            additionalDistanceKm: number;
-            additionalDurationMinutes: number;
-            estimatedPickupAt: string;
-            estimatedDeliveryAt: string;
-            approximateLocations: boolean;
-            locationVerification: "PROVISIONAL" | "EXACT_COORDINATES";
-            explanations: string[];
-        }> = [];
+        const matches: EligibleCandidate[] = [];
 
         let routeFailures = 0;
         let routeChecks = 0;
@@ -642,26 +632,82 @@ router.get("/loads/:loadId", async (req, res, next) => {
             return;
         }
 
+
+        const eligibleBeforeRanking = matches.length;
+
+        const rankedMatches = rankEligibleMatches(
+            matches,
+            {
+                loadWeightKg: load.weightKg.toNumber(),
+                loadVolumeM3: load.volumeM3!.toNumber(),
+
+                pickupWindowStart: load.pickupWindowStart,
+                pickupWindowEnd: load.pickupWindowEnd,
+
+                deliveryWindowStart:
+                    load.deliveryWindowStart,
+
+                deliveryWindowEnd:
+                    load.deliveryWindowEnd,
+            },
+            5
+        );
+
+
+
         res.json({
             success: true,
+
             data: {
                 loadId: load.id,
-                matches,
+
+                matches: rankedMatches,
+
                 checks: {
                     retrievedJourneys: legs.length,
+
                     prefilteredCandidates:
                         cheapCandidates.length,
+
                     routingChecks: routeChecks,
                     routingFailures: routeFailures,
                     missingCoordinates,
+
                     truncated,
+
                     partialResults:
                         truncated ||
                         routeFailures > 0 ||
                         missingCoordinates > 0,
+
+                    eligibleBeforeRanking,
+
+                    returnedMatches: rankedMatches.length,
                 },
+
+                ranking: {
+                    basis: "PRE_PRICE",
+
+                    weights: {
+                        route: 35,
+                        time: 25,
+                        capacity: 20,
+                        price: 20,
+                    },
+
+                    currentMaximum: 80,
+                    finalMaximum: 100,
+
+                    priceComponentAvailable: false,
+
+                    finalRankingAvailable: false,
+
+                    method:
+                        "Eligible candidates are ordered by route fit, deadline slack and capacity utilization. Price advantage is not yet scored.",
+                },
+
                 message:
-                    "Unranked hard-filter candidates. Approximate coordinates require location verification.",
+                    "Provisional pre-price ranking of eligible candidates. Exact freight locations and price advantage require further verification.",
             },
         });
     } catch (error) {
