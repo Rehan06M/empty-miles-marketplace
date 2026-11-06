@@ -5,6 +5,7 @@ import helmet from "helmet";
 import truckRoutes from "./modules/trucks/truck.routes.js";
 import emptyLegRoutes from "./modules/empty-legs/emptyLeg.routes.js";
 import loadRoutes from "./modules/loads/load.routes.js";
+import routingRoutes from "./modules/routing/routing.routes.js";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 
@@ -39,6 +40,8 @@ app.use("/api/v1/trucks", truckRoutes);
 app.use("/api/v1/empty-legs", emptyLegRoutes);
 // Shipper load management
 app.use("/api/v1/loads", loadRoutes);
+// Road route geometry and detour previews
+app.use("/api/v1/routing", routingRoutes);
 
 // Unknown API routes
 app.use((_req, res) => {

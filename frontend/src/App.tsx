@@ -21,6 +21,7 @@ import { AdminDashboard } from "./pages/admin/AdminDashboard";
 
 import { MarketplaceScreen } from "./components/marketplace/MarketplaceScreen";
 import { RouteMapPage } from "./pages/maps/RouteMapPage";
+import { RoadAnalysisPage } from "./pages/maps/RoadAnalysisPage";
 import { ShipperLoadsPage } from "./pages/shipper/ShipperLoadsPage";
 
 function ShipperOnly({
@@ -89,6 +90,14 @@ function App() {
             }
           />
           <Route
+            path="/app/shipper/route-analysis"
+            element={
+              <ShipperOnly>
+                <RoadAnalysisPage role="shipper" />
+              </ShipperOnly>
+            }
+          />
+          <Route
             path="/app/shipper/map"
             element={
               <ShipperOnly>
@@ -127,6 +136,14 @@ function App() {
             element={
               <CarrierOnly>
                 <MarketplaceScreen screen="trucks" />
+              </CarrierOnly>
+            }
+          />
+          <Route
+            path="/app/carrier/route-analysis"
+            element={
+              <CarrierOnly>
+                <RoadAnalysisPage role="carrier" />
               </CarrierOnly>
             }
           />

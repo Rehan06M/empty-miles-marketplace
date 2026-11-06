@@ -58,11 +58,10 @@ function fromEmptyLeg(leg: EmptyLeg): MapJourney {
   return {
     id: leg.id,
     title: `${leg.originName} → ${leg.destinationName}`,
-    description: `${
-      leg.truck?.registrationNumber ?? "Truck"
-    } · ${Number(
-      leg.availableWeightKg
-    ).toLocaleString("en-IN")} kg available`,
+    description: `${leg.truck?.registrationNumber ?? "Truck"
+      } · ${Number(
+        leg.availableWeightKg
+      ).toLocaleString("en-IN")} kg available`,
     status: leg.status,
 
     from: resolveMapPoint(
@@ -154,6 +153,28 @@ export function RouteMapPage({
           : "Explore the origin and destination locations of your published truck journeys."
       }
     >
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-white p-4">
+        <div>
+          <p className="text-sm font-semibold text-[#111111]">
+            Need actual road directions?
+          </p>
+          <p className="mt-1 text-xs text-[#6B6B6B]">
+            Calculate road geometry, driving estimates,
+            and pickup/delivery detours.
+          </p>
+        </div>
+
+        <Link
+          to={
+            isShipper
+              ? "/app/shipper/route-analysis"
+              : "/app/carrier/route-analysis"
+          }
+          className="rounded-lg bg-[#2F63FF] px-4 py-3 text-sm font-semibold text-white"
+        >
+          Open Road Analysis
+        </Link>
+      </div>
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-[#E5E5E5] bg-white p-5">
