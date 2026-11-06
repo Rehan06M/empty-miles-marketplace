@@ -2,6 +2,9 @@
 import {
     rankEligibleMatches,
 } from "./ranking.js";
+import {
+    rankPricedMatches,
+} from "../pricing/pricing.js";
 
 import type {
     EligibleCandidate,
@@ -633,9 +636,46 @@ router.get("/loads/:loadId", async (req, res, next) => {
         }
 
 
+
         const eligibleBeforeRanking = matches.length;
 
-        const rankedMatches = rankEligibleMatches(
+        // Obtain a separate pickup-to-delivery road route
+        // for the illustrative dedicated-trip baseline.
+        //
+        // This is ONE additional ORS request per search
+        // that has at least one eligible candidate.
+        let dedicatedDistanceKm: number | null = null;
+
+        if (eligibleBeforeRanking > 0) {
+            try {
+                const dedicatedRoute = await fetchRoadRoute([
+                    pickup.point,
+                    delivery.point,
+                ]);
+
+                dedicatedDistanceKm =
+                    dedicatedRoute.distanceMetres / 1000;
+            } catch (error) {
+                console.warn(
+                    "Dedicated-trip distance lookup failed:",
+                    error instanceof Error
+                        ? error.message
+                        : "Unknown routing error"
+                );
+
+                res.status(503).json({
+                    success: false,
+                    message:
+                        "Eligible trucks were found, but the dedicated-trip pricing route could not be calculated. Please retry.",
+                });
+
+                return;
+            }
+        }
+
+        // Score ALL eligible candidates before applying
+        // the final five-result limit.
+        const prePricedMatches = rankEligibleMatches(
             matches,
             {
                 loadWeightKg: load.weightKg.toNumber(),
@@ -650,10 +690,22 @@ router.get("/loads/:loadId", async (req, res, next) => {
                 deliveryWindowEnd:
                     load.deliveryWindowEnd,
             },
-            5
+            matches.length
         );
 
-
+        // Complete the 20-point price component and
+        // re-sort using the full 100-point score.
+        const rankedMatches =
+            dedicatedDistanceKm === null
+                ? []
+                : rankPricedMatches(
+                    prePricedMatches,
+                    {
+                        loadWeightKg: load.weightKg.toNumber(),
+                        dedicatedDistanceKm,
+                    },
+                    5
+                );
 
         res.json({
             success: true,
@@ -685,8 +737,9 @@ router.get("/loads/:loadId", async (req, res, next) => {
                     returnedMatches: rankedMatches.length,
                 },
 
+
                 ranking: {
-                    basis: "PRE_PRICE",
+                    basis: "FULL_ESTIMATED",
 
                     weights: {
                         route: 35,
@@ -695,19 +748,20 @@ router.get("/loads/:loadId", async (req, res, next) => {
                         price: 20,
                     },
 
-                    currentMaximum: 80,
+                    currentMaximum: 100,
                     finalMaximum: 100,
 
-                    priceComponentAvailable: false,
+                    priceComponentAvailable: true,
+                    finalRankingAvailable: true,
 
-                    finalRankingAvailable: false,
+                    priceEstimateType: "ILLUSTRATIVE",
 
                     method:
-                        "Eligible candidates are ordered by route fit, deadline slack and capacity utilization. Price advantage is not yet scored.",
+                        "Eligible candidates are ranked by route fit, deadline slack, capacity utilization and model-estimated price advantage. Prices are not binding quotations.",
                 },
 
                 message:
-                    "Provisional pre-price ranking of eligible candidates. Exact freight locations and price advantage require further verification.",
+                    "Eligible candidates ranked using all four scoring components. Freight prices are illustrative MVP estimates, and exact pickup locations require verification.",
             },
         });
     } catch (error) {

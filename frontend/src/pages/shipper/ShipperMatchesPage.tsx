@@ -38,7 +38,6 @@ function errorMessage(error: unknown): string {
         : "Unexpected error while searching for trucks";
 }
 
-
 function ScoreBreakdown({
     match,
 }: {
@@ -62,6 +61,11 @@ function ScoreBreakdown({
             points: score.capacityPoints,
             maximum: 20,
         },
+        {
+            label: "Price advantage",
+            points: score.pricePoints,
+            maximum: 20,
+        },
     ];
 
     return (
@@ -69,19 +73,19 @@ function ScoreBreakdown({
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-                        Pre-price Ranking
+                        Estimated Match Ranking
                     </p>
 
                     <p className="mt-2 text-2xl font-semibold text-ink">
-                        {score.prePricePoints.toFixed(2)}
+                        {score.finalScore.toFixed(2)}
                         <span className="ml-1 text-sm font-normal text-muted">
-                            / 80 points
+                            / 100 points
                         </span>
                     </p>
                 </div>
 
                 <Badge variant="info">
-                    Provisional Rank #{score.rank}
+                    Rank #{score.rank}
                 </Badge>
             </div>
 
@@ -119,21 +123,11 @@ function ScoreBreakdown({
                         </div>
                     </div>
                 ))}
-
-                <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
-                    <span className="text-xs font-medium text-muted">
-                        Price advantage
-                    </span>
-
-                    <span className="text-xs font-semibold text-muted">
-                        Not scored — Step 19
-                    </span>
-                </div>
             </div>
 
-            <div className="mt-4 space-y-2 border-t border-line pt-4">
+            <div className="mt-5 space-y-2 border-t border-line pt-4">
                 <p className="text-xs font-semibold text-ink">
-                    Why this candidate received these points
+                    How this score was calculated
                 </p>
 
                 {score.explanations.map((explanation) => (
@@ -147,13 +141,173 @@ function ScoreBreakdown({
             </div>
 
             <p className="mt-4 text-xs leading-5 text-muted">
-                This is a provisional, unpriced ranking among
-                evaluated eligible trucks. It is not a final
-                compatibility percentage or booking guarantee.
+                All four scoring components are calculated.
+                The price component uses illustrative model
+                assumptions, not verified market quotations.
+                Ranking is limited to evaluated candidates.
             </p>
         </div>
     );
 }
+
+
+function PricingBreakdown({
+    match,
+}: {
+    match: EligibleMatch;
+}) {
+    const price = match.pricing;
+    const rates = price.assumptions;
+
+    const money = (amount: number) =>
+        new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+            maximumFractionDigits: 0,
+        }).format(amount);
+
+    const saving = price.shipperSavingsInr >= 0;
+
+    return (
+        <div className="mt-5 rounded-xl border border-line bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                        Estimated Marketplace Freight Price
+                    </p>
+
+                    <p className="mt-2 text-3xl font-semibold text-ink">
+                        {money(price.marketplacePriceInr)}
+                    </p>
+                </div>
+
+                <Badge variant="info">
+                    Illustrative Estimate
+                </Badge>
+            </div>
+
+            <div className="mt-5 space-y-3 text-sm">
+                <div className="flex justify-between gap-3">
+                    <span className="text-muted">
+                        Dedicated-trip baseline
+                    </span>
+                    <strong className="text-ink">
+                        {money(price.dedicatedPriceInr)}
+                    </strong>
+                </div>
+
+                <div className="flex justify-between gap-3">
+                    <span className="text-muted">
+                        Incremental detour cost
+                    </span>
+                    <strong className="text-ink">
+                        {money(price.incrementalDetourCostInr)}
+                    </strong>
+                </div>
+
+                <div className="flex justify-between gap-3">
+                    <span className="text-muted">
+                        Carrier earnings
+                    </span>
+                    <strong className="text-ink">
+                        {money(price.carrierEarningsInr)}
+                    </strong>
+                </div>
+
+                <div className="flex justify-between gap-3">
+                    <span className="text-muted">
+                        Platform fee ({rates.platformFeeRate * 100}%)
+                    </span>
+                    <strong className="text-ink">
+                        {money(price.platformFeeInr)}
+                    </strong>
+                </div>
+
+                <div className="flex justify-between gap-3 border-t border-line pt-3">
+                    <strong className="text-ink">
+                        Marketplace price
+                    </strong>
+                    <strong className="text-brand">
+                        {money(price.marketplacePriceInr)}
+                    </strong>
+                </div>
+
+                <div className="rounded-lg bg-canvas p-3">
+                    <p className="text-xs font-semibold text-ink">
+                        {saving
+                            ? "Estimated shipper savings"
+                            : "Estimated additional cost"}
+                    </p>
+
+                    <p className="mt-1 text-xl font-semibold text-ink">
+                        {money(Math.abs(price.shipperSavingsInr))}
+                    </p>
+
+                    <p className="mt-1 text-xs text-muted">
+                        {Math.abs(price.savingsPercentage).toFixed(2)}%
+                        {saving
+                            ? " below the modeled dedicated-trip baseline"
+                            : " above the modeled dedicated-trip baseline"}
+                    </p>
+                </div>
+            </div>
+
+            <details className="mt-5 border-t border-line pt-4">
+                <summary className="cursor-pointer text-sm font-semibold text-brand">
+                    View pricing assumptions and calculations
+                </summary>
+
+                <div className="mt-3 space-y-2 text-xs leading-5 text-muted">
+                    <p>
+                        Dedicated distance:{" "}
+                        {price.dedicatedDistanceKm.toFixed(2)} km
+                    </p>
+
+                    <p>
+                        Shipment weight:{" "}
+                        {price.loadWeightTonnes.toFixed(2)} tonnes
+                    </p>
+
+                    <p>
+                        Dedicated baseline = {money(rates.dedicatedDispatchInr)}
+                        {" + "}{money(rates.dedicatedPerKmInr)}/km
+                        {" + "}{money(rates.dedicatedPerTonneKmInr)}/tonne-km.
+                    </p>
+
+                    <p>
+                        Detour cost = {money(rates.detourPerKmInr)}/km
+                        {" + "}{money(rates.detourPerMinuteInr)}/minute
+                        of additional driving.
+                    </p>
+
+                    <p>
+                        Carrier earnings = {money(rates.carrierBaseInr)}
+                        {" + "}{money(rates.carrierPerTonneKmInr)}/tonne-km
+                        {" + detour cost."}
+                    </p>
+
+                    <p>
+                        Platform fee = {rates.platformFeeRate * 100}%
+                        of carrier earnings.
+                    </p>
+
+                    <p>
+                        Marketplace price = carrier earnings + platform fee.
+                    </p>
+
+                    <div className="space-y-1 border-t border-line pt-3">
+                        {price.limitations.map((limitation) => (
+                            <p key={limitation}>
+                                • {limitation}
+                            </p>
+                        ))}
+                    </div>
+                </div>
+            </details>
+        </div>
+    );
+}
+
 
 function MatchCard({
     match,
@@ -308,11 +462,13 @@ function MatchCard({
             )}
 
             <ScoreBreakdown match={match} />
+            <PricingBreakdown match={match} />
 
             <p className="mt-4 text-xs text-muted">
                 This candidate passed the implemented hard eligibility
-                filters. The ranking is provisional until price advantage
-                is calculated. No booking or capacity reservation
+                filters. Its price and 100-point score are calculated
+                from illustrative MVP assumptions, not a binding
+                quotation. No booking, payment or capacity reservation
                 has been created.
             </p>
         </div>
@@ -478,15 +634,20 @@ export function ShipperMatchesPage() {
                     <>
                         <div className="rounded-xl border border-line bg-white p-4">
                             <p className="text-sm font-semibold text-ink">
-                                Provisional match ranking
+                                Price-aware estimated match ranking
                             </p>
 
                             <p className="mt-2 text-xs leading-5 text-muted">
-                                The ranking uses route fit (35 points),
-                                time compatibility (25 points), and capacity
-                                utilization (20 points). Price advantage
-                                (20 points) will be implemented in Step 19.
-                                These results are not final price-aware rankings.
+                                Eligible trucks are ranked using route fit
+                                (35 points), time compatibility (25 points),
+                                capacity utilization (20 points), and modeled
+                                price advantage (20 points).
+                            </p>
+
+                            <p className="mt-2 text-xs leading-5 text-muted">
+                                Freight pricing is an illustrative calculation,
+                                not a live quote. The search may be limited to
+                                a subset of available truck journeys.
                             </p>
 
                             <p className="mt-2 text-xs leading-5 text-muted">
@@ -548,7 +709,7 @@ export function ShipperMatchesPage() {
 
                         <DashboardPanel
                             title="Ranked Eligible Trucks"
-                            subtitle="Up to five eligible candidates, provisionally ordered without price scoring"
+                            subtitle="Up to five eligible candidates ordered using estimated route, time, capacity and price scores"
                         >
                             {result.matches.length === 0 ? (
                                 <div className="py-8 text-center">

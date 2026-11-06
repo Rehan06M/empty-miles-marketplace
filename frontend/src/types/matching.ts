@@ -1,17 +1,47 @@
 
+export type PricingEstimate = {
+  currency: "INR";
+  estimateType: "ILLUSTRATIVE";
+
+  dedicatedDistanceKm: number;
+  loadWeightTonnes: number;
+
+  dedicatedPriceInr: number;
+  incrementalDetourCostInr: number;
+
+  carrierEarningsInr: number;
+  platformFeeInr: number;
+  marketplacePriceInr: number;
+
+  shipperSavingsInr: number;
+  savingsPercentage: number;
+
+  assumptions: {
+    dedicatedDispatchInr: number;
+    dedicatedPerKmInr: number;
+    dedicatedPerTonneKmInr: number;
+    carrierBaseInr: number;
+    carrierPerTonneKmInr: number;
+    detourPerKmInr: number;
+    detourPerMinuteInr: number;
+    platformFeeRate: number;
+  };
+
+  limitations: string[];
+};
+
 export type RankingBreakdown = {
   rank: number;
 
   routePoints: number;
   timePoints: number;
   capacityPoints: number;
-
-  pricePoints: null;
+  pricePoints: number;
 
   prePricePoints: number;
   prePriceMaximum: 80;
 
-  finalScore: null;
+  finalScore: number;
 
   explanations: string[];
 };
@@ -44,6 +74,7 @@ export type EligibleMatch = {
   explanations: string[];
 
   ranking: RankingBreakdown;
+  pricing: PricingEstimate;
 };
 
 export type MatchingChecks = {
@@ -62,7 +93,7 @@ export type MatchingChecks = {
 };
 
 export type MatchingRankingInfo = {
-  basis: "PRE_PRICE";
+  basis: "FULL_ESTIMATED";
 
   weights: {
     route: 35;
@@ -71,22 +102,22 @@ export type MatchingRankingInfo = {
     price: 20;
   };
 
-  currentMaximum: 80;
+  currentMaximum: 100;
   finalMaximum: 100;
 
-  priceComponentAvailable: false;
-  finalRankingAvailable: false;
+  priceComponentAvailable: true;
+  finalRankingAvailable: true;
+
+  priceEstimateType: "ILLUSTRATIVE";
 
   method: string;
 };
 
 export type MatchingResponse = {
   loadId: string;
-
   matches: EligibleMatch[];
 
   checks: MatchingChecks;
-
   ranking: MatchingRankingInfo;
 
   message: string;
