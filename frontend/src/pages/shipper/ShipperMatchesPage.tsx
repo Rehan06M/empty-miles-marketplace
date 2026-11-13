@@ -10,7 +10,8 @@ import {
     Leaf,
 } from "lucide-react";
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { createBooking } from "../../services/bookingApi";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { DashboardPanel } from "../../components/dashboard/DashboardPanel";
@@ -527,8 +528,12 @@ function EmissionsBreakdown({
 
 function MatchCard({
     match,
+    onRequest,
+    requesting,
 }: {
     match: EligibleMatch;
+    onRequest: (match: EligibleMatch) => Promise<void>;
+    requesting: boolean;
 }) {
     return (
         <div className="rounded-xl border border-line bg-white p-5">
@@ -680,6 +685,24 @@ function MatchCard({
             <ScoreBreakdown match={match} />
             <PricingBreakdown match={match} />
             <EmissionsBreakdown match={match} />
+            <div className="mt-5 border-t border-line pt-5">
+                <Button
+                    type="button"
+                    disabled={requesting}
+                    onClick={() => void onRequest(match)}
+                >
+                    {requesting
+                        ? "Requesting Booking..."
+                        : "Request Booking"}
+                </Button>
+
+                <p className="mt-3 text-xs leading-5 text-muted">
+                    Submitting creates a pending booking and
+                    temporarily reserves the requested truck capacity.
+                    The carrier must approve the request.
+                    No payment will be collected.
+                </p>
+            </div>
 
             <p className="mt-4 text-xs text-muted">
                 This candidate passed the implemented hard eligibility
@@ -693,6 +716,38 @@ function MatchCard({
 }
 
 export function ShipperMatchesPage() {
+
+    const navigate = useNavigate();
+
+    const [requestingLegId, setRequestingLegId] =
+        useState<string | null>(null);
+
+    async function requestBooking(match: EligibleMatch) {
+        if (requestingLegId !== null) return;
+
+        const confirmed = window.confirm(
+            `Request a booking with truck ${match.truckRegistration} for ₹${match.pricing.marketplacePriceInr.toLocaleString("en-IN")} (illustrative estimate)?`
+        );
+
+        if (!confirmed) return;
+
+        setRequestingLegId(match.emptyLegId);
+        setError("");
+
+        try {
+            await createBooking(match.offerToken);
+
+            navigate("/app/shipper/bookings");
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Booking request failed"
+            );
+        } finally {
+            setRequestingLegId(null);
+        }
+    }
     const [loads, setLoads] = useState<ShipmentLoad[]>([]);
     const [selectedId, setSelectedId] = useState("");
 
@@ -968,6 +1023,8 @@ export function ShipperMatchesPage() {
                                         <MatchCard
                                             key={match.emptyLegId}
                                             match={match}
+                                            requesting={requestingLegId !== null}
+                                            onRequest={requestBooking}
                                         />
                                     ))}
                                 </div>

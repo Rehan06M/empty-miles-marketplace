@@ -330,13 +330,19 @@ router.patch("/:id", async (req, res, next) => {
       const bookingCount = await tx.booking.count({
         where: {
           loadId: existing.id,
-          status: {
-            in: [
-              "PENDING_APPROVAL",
-              "CONFIRMED",
-              "IN_TRANSIT",
-            ],
-          },
+          OR: [
+            {
+              status: {
+                in: ["CONFIRMED", "IN_TRANSIT"],
+              },
+            },
+            {
+              status: "PENDING_APPROVAL",
+              expiresAt: {
+                gt: new Date(),
+              },
+            },
+          ],
         },
       });
 
@@ -384,12 +390,12 @@ router.patch("/:id", async (req, res, next) => {
           patch.deliveryWindowStart !== undefined
             ? patch.deliveryWindowStart
             : existing.deliveryWindowStart?.toISOString() ??
-              null,
+            null,
         deliveryWindowEnd:
           patch.deliveryWindowEnd !== undefined
             ? patch.deliveryWindowEnd
             : existing.deliveryWindowEnd?.toISOString() ??
-              null,
+            null,
         status:
           patch.status ??
           (existing.status as "DRAFT" | "ACTIVE"),
@@ -506,13 +512,19 @@ router.patch("/:id/cancel", async (req, res, next) => {
       const activeBookings = await tx.booking.count({
         where: {
           loadId: existing.id,
-          status: {
-            in: [
-              "PENDING_APPROVAL",
-              "CONFIRMED",
-              "IN_TRANSIT",
-            ],
-          },
+          OR: [
+            {
+              status: {
+                in: ["CONFIRMED", "IN_TRANSIT"],
+              },
+            },
+            {
+              status: "PENDING_APPROVAL",
+              expiresAt: {
+                gt: new Date(),
+              },
+            },
+          ],
         },
       });
 

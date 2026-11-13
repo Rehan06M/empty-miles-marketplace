@@ -105,6 +105,7 @@ export type EligibleMatch = {
     ranking: RankingBreakdown;
     pricing: PricingEstimate;
     emissions: EmissionsEstimate;
+    offerToken: string;
 };
 
 export type MatchingChecks = {

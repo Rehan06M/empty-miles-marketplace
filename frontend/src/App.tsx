@@ -24,6 +24,7 @@ import { RouteMapPage } from "./pages/maps/RouteMapPage";
 import { RoadAnalysisPage } from "./pages/maps/RoadAnalysisPage";
 import { ShipperLoadsPage } from "./pages/shipper/ShipperLoadsPage";
 import { ShipperMatchesPage } from "./pages/shipper/ShipperMatchesPage";
+import { BookingManagementPage } from "./pages/bookings/BookingManagementPage";
 
 function ShipperOnly({
   children,
@@ -118,11 +119,10 @@ function App() {
             path="/app/shipper/bookings"
             element={
               <ShipperOnly>
-                <MarketplaceScreen screen="bookings" />
+                <BookingManagementPage role="shipper" />
               </ShipperOnly>
             }
           />
-
           {/* Authenticated carrier workspace */}
           <Route
             path="/app/carrier"
@@ -168,7 +168,7 @@ function App() {
             path="/app/carrier/requests"
             element={
               <CarrierOnly>
-                <MarketplaceScreen screen="requests" />
+                <BookingManagementPage role="carrier" />
               </CarrierOnly>
             }
           />

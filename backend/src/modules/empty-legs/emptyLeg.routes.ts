@@ -161,7 +161,7 @@ function validateJourney(
     if (
       truck.maxVolumeM3 === null ||
       leg.availableVolumeM3 >
-        truck.maxVolumeM3.toNumber()
+      truck.maxVolumeM3.toNumber()
     ) {
       throw new ApiError(
         400,
@@ -420,13 +420,19 @@ router.patch("/:id", async (req, res, next) => {
       const activeBookings = await tx.booking.count({
         where: {
           emptyLegId: id,
-          status: {
-            in: [
-              "PENDING_APPROVAL",
-              "CONFIRMED",
-              "IN_TRANSIT",
-            ],
-          },
+          OR: [
+            {
+              status: {
+                in: ["CONFIRMED", "IN_TRANSIT"],
+              },
+            },
+            {
+              status: "PENDING_APPROVAL",
+              expiresAt: {
+                gt: new Date(),
+              },
+            },
+          ],
         },
       });
 
@@ -570,13 +576,19 @@ router.patch("/:id/close", async (req, res, next) => {
       const activeBookings = await tx.booking.count({
         where: {
           emptyLegId: id,
-          status: {
-            in: [
-              "PENDING_APPROVAL",
-              "CONFIRMED",
-              "IN_TRANSIT",
-            ],
-          },
+          OR: [
+            {
+              status: {
+                in: ["CONFIRMED", "IN_TRANSIT"],
+              },
+            },
+            {
+              status: "PENDING_APPROVAL",
+              expiresAt: {
+                gt: new Date(),
+              },
+            },
+          ],
         },
       });
 

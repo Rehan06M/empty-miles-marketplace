@@ -1,5 +1,4 @@
 
-
 import {
     rankEligibleMatches,
 } from "./ranking.js";
@@ -9,6 +8,9 @@ import {
 import {
     calculateEmissions,
 } from "../emissions/emissions.js";
+import {
+    createBookingOffer,
+} from "../bookings/bookingOffer.js";
 
 import type {
     EligibleCandidate,
@@ -720,6 +722,7 @@ router.get("/loads/:loadId", async (req, res, next) => {
                 );
 
 
+
         const matchesWithEmissions =
             rankedMatches.map((match) => {
                 if (dedicatedDistanceKm === null) {
@@ -738,9 +741,39 @@ router.get("/loads/:loadId", async (req, res, next) => {
                         load.weightKg.toNumber(),
                 });
 
+                const correspondingLeg = legs.find(
+                    (leg) => leg.id === match.emptyLegId
+                );
+
+                if (!correspondingLeg) {
+                    throw new Error(
+                        "Matched journey not found in candidate set"
+                    );
+                }
+
+                const offerToken = createBookingOffer({
+                    shipperId,
+                    loadId: load.id,
+                    emptyLegId: match.emptyLegId,
+
+                    loadUpdatedAt: load.updatedAt.toISOString(),
+                    legUpdatedAt:
+                        correspondingLeg.updatedAt.toISOString(),
+
+                    quotedPriceInr:
+                        match.pricing.marketplacePriceInr,
+                    dedicatedPriceInr:
+                        match.pricing.dedicatedPriceInr,
+                    platformFeeInr:
+                        match.pricing.platformFeeInr,
+                    estimatedCo2SavedKg:
+                        emissions.co2SavedKg,
+                });
+
                 return {
                     ...match,
                     emissions,
+                    offerToken,
                 };
             });
 
