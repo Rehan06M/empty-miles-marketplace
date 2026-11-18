@@ -19,6 +19,7 @@ import { ShipperDashboard } from "./pages/shipper/ShipperDashboard";
 import { CarrierDashboard } from "./pages/carrier/CarrierDashboard";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminConsolePage } from "./pages/admin/AdminConsolePage";
+import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { MarketplaceScreen } from "./components/marketplace/MarketplaceScreen";
 import { RouteMapPage } from "./pages/maps/RouteMapPage";
 import { RoadAnalysisPage } from "./pages/maps/RoadAnalysisPage";
@@ -239,6 +240,14 @@ function App() {
             element={
               <AdminOnly>
                 <AdminConsolePage view="bookings" />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="/app/admin/reports"
+            element={
+              <AdminOnly>
+                <AdminReportsPage />
               </AdminOnly>
             }
           />

@@ -162,7 +162,12 @@ const roleConfig: Record<
         to: "/demo/admin/bookings",
         authOnly: true,
       },
-      { label: "Reports", icon: BarChart3 },
+      {
+        label: "Reports",
+        icon: BarChart3,
+        to: "/demo/admin/reports",
+        authOnly: true,
+      },
       { label: "Settings", icon: Settings2 },
     ],
   },

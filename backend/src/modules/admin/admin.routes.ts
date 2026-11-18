@@ -12,10 +12,14 @@ import {
 import {
   checkModerationPolicy,
 } from "./adminPolicy.js";
+import adminReportsRoutes from "./adminReports.routes.js";
 
 const router = Router();
 
 router.use(authenticate, requireRole("ADMIN"));
+// Protected by the parent Admin authentication
+// and role middleware.
+router.use("/reports", adminReportsRoutes);
 
 const uuidSchema = z.uuid();
 
