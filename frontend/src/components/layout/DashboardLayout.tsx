@@ -89,6 +89,8 @@ const roleConfig: Record<
       {
         label: "Analytics",
         icon: BarChart3,
+        to: "/demo/shipper/analytics",
+        authOnly: true,
       },
     ],
   },
@@ -129,6 +131,8 @@ const roleConfig: Record<
       {
         label: "Analytics",
         icon: BarChart3,
+        to: "/demo/carrier/analytics",
+        authOnly: true,
       },
     ],
   },

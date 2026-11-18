@@ -26,6 +26,7 @@ import { ShipperLoadsPage } from "./pages/shipper/ShipperLoadsPage";
 import { ShipperMatchesPage } from "./pages/shipper/ShipperMatchesPage";
 import { BookingManagementPage } from "./pages/bookings/BookingManagementPage";
 import { NotificationCenterPage } from "./pages/notifications/NotificationCenterPage";
+import { OperationsAnalyticsPage } from "./pages/analytics/OperationsAnalyticsPage";
 
 function ShipperOnly({
   children,
@@ -132,6 +133,14 @@ function App() {
               </ShipperOnly>
             }
           />
+          <Route
+            path="/app/shipper/analytics"
+            element={
+              <ShipperOnly>
+                <OperationsAnalyticsPage role="shipper" />
+              </ShipperOnly>
+            }
+          />
           {/* Authenticated carrier workspace */}
           <Route
             path="/app/carrier"
@@ -186,6 +195,14 @@ function App() {
             element={
               <CarrierOnly>
                 <NotificationCenterPage role="carrier" />
+              </CarrierOnly>
+            }
+          />
+          <Route
+            path="/app/carrier/analytics"
+            element={
+              <CarrierOnly>
+                <OperationsAnalyticsPage role="carrier" />
               </CarrierOnly>
             }
           />
