@@ -6,6 +6,7 @@ import {
   Truck,
   ArrowRight,
   Clock3,
+  CheckCircle2,
 } from "lucide-react";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
@@ -34,10 +35,10 @@ const money = (value: string | null) =>
   value === null
     ? "Not available"
     : new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 0,
-      }).format(Number(value));
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(Number(value));
 
 function dateText(value: string) {
   return new Date(value).toLocaleString("en-IN", {
@@ -91,6 +92,223 @@ function actionsFor(
     default:
       return [];
   }
+}
+
+
+function BookingProgress({
+  booking,
+}: {
+  booking: MarketplaceBooking;
+}) {
+  const milestones = [
+    {
+      key: "requested",
+      label: "Requested",
+      timestamp: booking.requestedAt,
+    },
+    {
+      key: "confirmed",
+      label: "Confirmed",
+      timestamp: booking.approvedAt,
+    },
+    {
+      key: "transit",
+      label: "In Transit",
+      timestamp: booking.pickedUpAt,
+    },
+    {
+      key: "completed",
+      label: "Completed",
+      timestamp: booking.completedAt,
+    },
+  ];
+
+  const terminalStatus = [
+    "REJECTED",
+    "CANCELLED",
+    "EXPIRED",
+  ].includes(booking.status);
+
+  return (
+    <section className="mt-5 rounded-xl border border-line bg-canvas p-4">
+      <h3 className="text-sm font-semibold text-ink">
+        Shipment Progress
+      </h3>
+
+      <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {milestones.map((milestone, index) => {
+          const reached = milestone.timestamp !== null;
+
+          return (
+            <div key={milestone.key}>
+              <div className="flex items-center gap-2">
+                <span
+                  className={[
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                    reached
+                      ? "border-[#2F63FF] bg-[#2F63FF] text-white"
+                      : "border-[#DADADA] bg-white text-muted",
+                  ].join(" ")}
+                >
+                  {reached ? (
+                    <CheckCircle2 size={17} />
+                  ) : (
+                    index + 1
+                  )}
+                </span>
+
+                <span
+                  className={[
+                    "text-xs font-semibold",
+                    reached
+                      ? "text-ink"
+                      : "text-muted",
+                  ].join(" ")}
+                >
+                  {milestone.label}
+                </span>
+              </div>
+
+              <p className="mt-2 text-xs leading-5 text-muted">
+                {milestone.timestamp
+                  ? dateText(milestone.timestamp)
+                  : "Not reached"}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {booking.status === "PENDING_APPROVAL" && (
+        <p className="mt-4 text-xs leading-5 text-amber-700">
+          Waiting for carrier approval. The request
+          expires on {dateText(booking.expiresAt)}.
+        </p>
+      )}
+
+      {booking.status === "CONFIRMED" && (
+        <p className="mt-4 text-xs leading-5 text-brand">
+          The carrier has confirmed this booking.
+          Transport has not been marked as started.
+        </p>
+      )}
+
+      {booking.status === "IN_TRANSIT" && (
+        <p className="mt-4 text-xs leading-5 text-brand">
+          The carrier has marked the shipment
+          as in transit. Delivery completion is
+          still pending.
+        </p>
+      )}
+
+      {terminalStatus && (
+        <p className="mt-4 text-xs leading-5 text-amber-700">
+          This booking ended with status{" "}
+          {booking.status.replaceAll("_", " ")}.
+          The remaining milestones are not expected
+          for this booking.
+        </p>
+      )}
+
+      {booking.status === "COMPLETED" && (
+        <p className="mt-4 text-xs leading-5 text-emerald-700">
+          The carrier has marked this shipment as
+          completed. This is a recorded status,
+          not independently verified delivery proof.
+        </p>
+      )}
+    </section>
+  );
+}
+
+
+function BookingActivity({
+  booking,
+}: {
+  booking: MarketplaceBooking;
+}) {
+  const events = [...booking.events].sort(
+    (a, b) =>
+      new Date(a.occurredAt).getTime() -
+      new Date(b.occurredAt).getTime() ||
+      a.id.localeCompare(b.id)
+  );
+
+  return (
+    <section className="mt-5 rounded-xl border border-line bg-white p-4">
+      <h3 className="text-sm font-semibold text-ink">
+        Booking Activity History
+      </h3>
+
+      <p className="mt-1 text-xs leading-5 text-muted">
+        Timestamped status changes recorded by the
+        backend.
+      </p>
+
+      {events.length === 0 ? (
+        <div className="mt-4 rounded-lg bg-canvas p-3">
+          <p className="text-xs leading-5 text-muted">
+            No audit events are stored for this
+            booking. It may have been created before
+            activity-history tracking was introduced.
+            Its current status and milestone timestamps
+            are shown above, but missing historical
+            events have not been reconstructed.
+          </p>
+        </div>
+      ) : (
+        <ol className="mt-5 space-y-5">
+          {events.map((event) => (
+            <li
+              key={event.id}
+              className="flex items-start gap-3"
+            >
+              <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2F63FF]/10 text-[#2F63FF]">
+                <CheckCircle2 size={16} />
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-semibold text-ink">
+                    {event.toStatus.replaceAll(
+                      "_",
+                      " "
+                    )}
+                  </p>
+
+                  <span className="rounded-full bg-canvas px-2 py-1 text-[10px] font-medium text-muted">
+                    {event.actorType}
+                  </span>
+                </div>
+
+                <p className="mt-2 text-xs leading-5 text-muted">
+                  {event.description}
+                </p>
+
+                <p className="mt-1 text-xs text-muted">
+                  {dateText(event.occurredAt)}
+                </p>
+
+                {event.fromStatus && (
+                  <p className="mt-1 text-[11px] text-muted">
+                    {event.fromStatus.replaceAll(
+                      "_",
+                      " "
+                    )}
+                    {" → "}
+                    {event.toStatus.replaceAll(
+                      "_",
+                      " "
+                    )}
+                  </p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
 }
 
 export function BookingManagementPage({
@@ -370,8 +588,8 @@ export function BookingManagementPage({
                         {booking.requestedVolumeM3 === null
                           ? "Not specified"
                           : `${Number(
-                              booking.requestedVolumeM3
-                            )} m³`}
+                            booking.requestedVolumeM3
+                          )} m³`}
                       </p>
                     </div>
 
@@ -401,8 +619,8 @@ export function BookingManagementPage({
                         {booking.estimatedCo2SavedKg === null
                           ? "Not available"
                           : `${Number(
-                              booking.estimatedCo2SavedKg
-                            ).toFixed(2)} kg`}
+                            booking.estimatedCo2SavedKg
+                          ).toFixed(2)} kg`}
                       </p>
                     </div>
                   </div>
@@ -428,6 +646,9 @@ export function BookingManagementPage({
                     measured emissions.
                   </p>
 
+                  <BookingProgress booking={booking} />
+
+                  <BookingActivity booking={booking} />
                   {actionsFor(booking, role).length > 0 && (
                     <div className="mt-5 flex flex-wrap gap-3 border-t border-line pt-4">
                       {actionsFor(booking, role).map(
@@ -437,8 +658,8 @@ export function BookingManagementPage({
                             type="button"
                             variant={
                               action === "approve" ||
-                              action === "start" ||
-                              action === "complete"
+                                action === "start" ||
+                                action === "complete"
                                 ? "primary"
                                 : "outline"
                             }

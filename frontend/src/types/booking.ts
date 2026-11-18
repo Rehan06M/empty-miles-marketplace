@@ -8,6 +8,21 @@ export type BookingStatus =
   | "CANCELLED"
   | "EXPIRED";
 
+
+export type BookingEvent = {
+  id: string;
+  bookingId: string;
+
+  fromStatus: BookingStatus | null;
+  toStatus: BookingStatus;
+
+  actorType: string;
+  actorId: string | null;
+
+  description: string;
+  occurredAt: string;
+};
+
 export type MarketplaceBooking = {
   id: string;
   loadId: string;
@@ -15,6 +30,7 @@ export type MarketplaceBooking = {
   shipperId: string;
 
   status: BookingStatus;
+  events: BookingEvent[];
 
   requestedWeightKg: string;
   requestedVolumeM3: string | null;

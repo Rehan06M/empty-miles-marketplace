@@ -85,19 +85,85 @@ const bookingInclude = {
             },
         },
     },
+    events: {
+        orderBy: { occurredAt: "asc" as const },
+    },
 } as const;
 
 // Synchronizes expired pending requests on list reads.
 // Expired pending requests do not reserve capacity
 // even if they have not yet been updated to EXPIRED.
+
 async function expirePending() {
-    await prisma.booking.updateMany({
+    // Inspect expired candidates first. Each mutation then follows
+    // the same Truck -> Load -> Booking lock order as status actions.
+    const candidates = await prisma.booking.findMany({
         where: {
             status: "PENDING_APPROVAL",
             expiresAt: { lte: new Date() },
         },
-        data: { status: "EXPIRED" },
+        select: {
+            id: true,
+            loadId: true,
+            emptyLeg: { select: { truckId: true } },
+        },
+        take: 100,
+        orderBy: { expiresAt: "asc" },
     });
+
+    for (const candidate of candidates) {
+        await prisma.$transaction(async (tx) => {
+            const truckRows = await tx.$queryRaw<{ id: string }[]>`
+                SELECT "id" FROM "Truck"
+                WHERE "id" = ${candidate.emptyLeg.truckId}::uuid
+                FOR UPDATE
+            `;
+            if (!truckRows.length) return;
+
+            const loadRows = await tx.$queryRaw<{ id: string }[]>`
+                SELECT "id" FROM "Load"
+                WHERE "id" = ${candidate.loadId}::uuid
+                FOR UPDATE
+            `;
+            if (!loadRows.length) return;
+
+            const bookingRows = await tx.$queryRaw<{ id: string }[]>`
+                SELECT "id" FROM "Booking"
+                WHERE "id" = ${candidate.id}::uuid
+                FOR UPDATE
+            `;
+            if (!bookingRows.length) return;
+
+            const current = await tx.booking.findUnique({
+                where: { id: candidate.id },
+                select: { status: true, expiresAt: true },
+            });
+
+            if (
+                current?.status !== "PENDING_APPROVAL" ||
+                current.expiresAt > new Date()
+            ) {
+                return;
+            }
+
+            await tx.booking.update({
+                where: { id: candidate.id },
+                data: {
+                    status: "EXPIRED",
+                    events: {
+                        create: {
+                            fromStatus: "PENDING_APPROVAL",
+                            toStatus: "EXPIRED",
+                            actorType: "SYSTEM",
+                            actorId: null,
+                            description:
+                                "Booking approval deadline expired. Reserved capacity was released.",
+                        },
+                    },
+                },
+            });
+        });
+    }
 }
 
 // POST /api/v1/bookings
@@ -334,6 +400,16 @@ router.post(
                             shipperId,
 
                             status: "PENDING_APPROVAL",
+                            events: {
+                                create: {
+                                    fromStatus: null,
+                                    toStatus: "PENDING_APPROVAL",
+                                    actorType: "SHIPPER",
+                                    actorId: shipperId,
+                                    description:
+                                        "Shipper submitted a booking request. Capacity was reserved pending carrier approval.",
+                                },
+                            },
 
                             requestedWeightKg: load.weightKg,
                             requestedVolumeM3: load.volumeM3,
@@ -499,6 +575,17 @@ router.patch(
                         fail(404, "Shipment not found");
                     }
 
+                    // Lock the booking row only after the Truck and Load.
+                    const bookingLock = await tx.$queryRaw<{ id: string }[]>`
+                        SELECT "id" FROM "Booking"
+                        WHERE "id" = ${id}::uuid
+                        FOR UPDATE
+                    `;
+
+                    if (!bookingLock.length) {
+                        fail(404, "Booking not found");
+                    }
+
                     const booking = await tx.booking.findUnique({
                         where: { id },
                         include: {
@@ -538,108 +625,155 @@ router.patch(
                     ) {
                         await tx.booking.update({
                             where: { id },
-                            data: { status: "EXPIRED" },
+                            data: {
+                                status: "EXPIRED",
+                                events: {
+                                    create: {
+                                        fromStatus: "PENDING_APPROVAL",
+                                        toStatus: "EXPIRED",
+                                        actorType: "SYSTEM",
+                                        actorId: null,
+                                        description:
+                                            "Booking approval deadline expired. Reserved capacity was released.",
+                                    },
+                                },
+                            },
                         });
 
                         return null;
                     }
 
                     let nextStatus:
-                        | "CONFIRMED"
-                        | "REJECTED"
-                        | "IN_TRANSIT"
-                        | "COMPLETED"
-                        | "CANCELLED";
+    | "CONFIRMED"
+    | "REJECTED"
+    | "IN_TRANSIT"
+    | "COMPLETED"
+    | "CANCELLED";
 
-                    const updates: {
-                        approvedAt?: Date;
-                        pickedUpAt?: Date;
-                        completedAt?: Date;
-                        cancelledAt?: Date;
-                    } = {};
+const updates: {
+    approvedAt?: Date;
+    pickedUpAt?: Date;
+    completedAt?: Date;
+    cancelledAt?: Date;
+} = {};
 
-                    if (action === "approve") {
-                        if (
-                            booking.status !== "PENDING_APPROVAL" ||
-                            booking.load.status !== "ACTIVE" ||
-                            booking.emptyLeg.status !== "ACTIVE" ||
-                            booking.emptyLeg.truck.status !== "ACTIVE" ||
-                            booking.emptyLeg.departureAt <= now
-                        ) {
-                            fail(409, "Booking cannot be approved");
-                        }
+if (action === "approve") {
+    if (
+        booking.status !== "PENDING_APPROVAL" ||
+        booking.load.status !== "ACTIVE" ||
+        booking.emptyLeg.status !== "ACTIVE" ||
+        booking.emptyLeg.truck.status !== "ACTIVE" ||
+        booking.emptyLeg.departureAt <= now
+    ) {
+        fail(409, "Booking cannot be approved");
+    }
 
-                        nextStatus = "CONFIRMED";
-                        updates.approvedAt = now;
-                    } else if (action === "reject") {
-                        if (booking.status !== "PENDING_APPROVAL") {
-                            fail(409, "Only pending bookings can be rejected");
-                        }
+    nextStatus = "CONFIRMED";
+    updates.approvedAt = now;
+} else if (action === "reject") {
+    if (booking.status !== "PENDING_APPROVAL") {
+        fail(409, "Only pending bookings can be rejected");
+    }
 
-                        nextStatus = "REJECTED";
-                    } else if (action === "start") {
-                        if (booking.status !== "CONFIRMED") {
-                            fail(409, "Only confirmed bookings can start");
-                        }
+    nextStatus = "REJECTED";
+} else if (action === "start") {
+    if (booking.status !== "CONFIRMED") {
+        fail(409, "Only confirmed bookings can start");
+    }
 
-                        nextStatus = "IN_TRANSIT";
-                        updates.pickedUpAt = now;
-                    } else if (action === "complete") {
-                        if (booking.status !== "IN_TRANSIT") {
-                            fail(409, "Only in-transit bookings can complete");
-                        }
+    nextStatus = "IN_TRANSIT";
+    updates.pickedUpAt = now;
+} else if (action === "complete") {
+    if (booking.status !== "IN_TRANSIT") {
+        fail(409, "Only in-transit bookings can complete");
+    }
 
-                        nextStatus = "COMPLETED";
-                        updates.completedAt = now;
-                    } else {
-                        if (
-                            booking.status !== "PENDING_APPROVAL" &&
-                            booking.status !== "CONFIRMED"
-                        ) {
-                            fail(409, "Booking cannot be cancelled now");
-                        }
+    nextStatus = "COMPLETED";
+    updates.completedAt = now;
+} else {
+    if (
+        booking.status !== "PENDING_APPROVAL" &&
+        booking.status !== "CONFIRMED"
+    ) {
+        fail(409, "Booking cannot be cancelled now");
+    }
 
-                        nextStatus = "CANCELLED";
-                        updates.cancelledAt = now;
-                    }
+    nextStatus = "CANCELLED";
+    updates.cancelledAt = now;
+}
 
-                    const result = await tx.booking.update({
-                        where: { id },
-                        data: {
-                            status: nextStatus,
-                            ...updates,
-                        },
-                        include: bookingInclude,
-                    });
 
-                    if (nextStatus === "COMPLETED") {
-                        await tx.load.update({
-                            where: { id: booking.loadId },
-                            data: { status: "CLOSED" },
-                        });
-                    }
+const actionDescriptions: Record<
+    typeof action,
+    string
+> = {
+    approve: "Carrier approved the booking request.",
+    reject:
+        "Carrier rejected the booking request. Reserved capacity was released.",
+    start:
+        "Carrier marked the shipment as in transit.",
+    complete:
+        "Carrier marked the shipment as completed.",
+    cancel:
+        "Shipper cancelled the booking. Reserved capacity was released.",
+};
 
-                    return result;
-                },
-                { timeout: 10000 }
+const result = await tx.booking.update({
+    where: { id },
+
+    data: {
+        status: nextStatus,
+        ...updates,
+
+        events: {
+            create: {
+                fromStatus: booking.status,
+                toStatus: nextStatus,
+
+                actorType:
+                    action === "cancel"
+                        ? "SHIPPER"
+                        : "CARRIER",
+
+                actorId: user.id,
+
+                description: actionDescriptions[action],
+            },
+        },
+    },
+
+    include: bookingInclude,
+});
+
+
+if (nextStatus === "COMPLETED") {
+    await tx.load.update({
+        where: { id: booking.loadId },
+        data: { status: "CLOSED" },
+    });
+}
+
+return result;
+        },
+{ timeout: 10000 }
             );
 
-            if (updated === null) {
-                res.status(409).json({
-                    success: false,
-                    message: "Booking request has expired",
-                });
-                return;
-            }
+if (updated === null) {
+    res.status(409).json({
+        success: false,
+        message: "Booking request has expired",
+    });
+    return;
+}
 
-            res.json({
-                success: true,
-                message: `Booking status updated to ${updated.status}`,
-                data: updated,
-            });
+res.json({
+    success: true,
+    message: `Booking status updated to ${updated.status}`,
+    data: updated,
+});
         } catch (error) {
-            sendError(error, res, next);
-        }
+    sendError(error, res, next);
+}
     }
 );
 
