@@ -18,7 +18,7 @@ import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ShipperDashboard } from "./pages/shipper/ShipperDashboard";
 import { CarrierDashboard } from "./pages/carrier/CarrierDashboard";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
-
+import { AdminConsolePage } from "./pages/admin/AdminConsolePage";
 import { MarketplaceScreen } from "./components/marketplace/MarketplaceScreen";
 import { RouteMapPage } from "./pages/maps/RouteMapPage";
 import { RoadAnalysisPage } from "./pages/maps/RoadAnalysisPage";
@@ -212,11 +212,36 @@ function App() {
             path="/app/admin"
             element={
               <AdminOnly>
-                <AdminDashboard />
+                <AdminConsolePage view="users" />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="/app/admin/users"
+            element={
+              <AdminOnly>
+                <AdminConsolePage view="users" />
               </AdminOnly>
             }
           />
 
+          <Route
+            path="/app/admin/marketplace"
+            element={
+              <AdminOnly>
+                <AdminConsolePage view="marketplace" />
+              </AdminOnly>
+            }
+          />
+
+          <Route
+            path="/app/admin/bookings"
+            element={
+              <AdminOnly>
+                <AdminConsolePage view="bookings" />
+              </AdminOnly>
+            }
+          />
           {/* Existing public development previews */}
           <Route
             path="/demo/shipper"

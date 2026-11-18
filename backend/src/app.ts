@@ -10,6 +10,7 @@ import matchingRoutes from "./modules/matching/matching.routes.js";
 import bookingRoutes from "./modules/bookings/booking.routes.js";
 import notificationRoutes from "./modules/notifications/notification.routes.js";
 import operationalAnalyticsRoutes from "./modules/analytics/operationalAnalytics.routes.js";
+import adminRoutes from "./modules/admin/admin.routes.js";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 
@@ -58,6 +59,8 @@ app.use(
   "/api/v1/analytics",
   operationalAnalyticsRoutes
 );
+// Admin-only marketplace oversight and moderation
+app.use("/api/v1/admin", adminRoutes);
 
 // Unknown API routes
 app.use((_req, res) => {

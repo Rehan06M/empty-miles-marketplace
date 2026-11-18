@@ -299,3 +299,19 @@ model BookingEventRead {
   @@id([userId, bookingEventId])
   @@index([bookingEventId])
 }
+
+model AdminModerationAction {
+  id String @id @default(uuid()) @db.Uuid
+
+  adminId             String @db.Uuid
+  targetUserId        String @db.Uuid
+  targetEmailSnapshot String
+
+  previousStatus UserStatus
+  nextStatus     UserStatus
+  reason         String
+  createdAt      DateTime   @default(now())
+
+  @@index([targetUserId, createdAt])
+  @@index([adminId, createdAt])
+}
