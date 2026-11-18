@@ -70,9 +70,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  trucks   Truck[]
-  loads    Load[]
-  bookings Booking[] @relation("ShipperBookings")
+  trucks            Truck[]
+  loads             Load[]
+  bookings          Booking[]          @relation("ShipperBookings")
+  notificationReads BookingEventRead[]
 
   @@index([role, status])
 }
@@ -261,7 +262,8 @@ model BookingEvent {
 
   occurredAt DateTime @default(now())
 
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking Booking            @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  reads   BookingEventRead[]
 
   @@index([bookingId, occurredAt])
 }
@@ -283,4 +285,17 @@ model AuthIdentity {
   @@unique([provider, providerUserId])
   @@unique([userId, provider])
   @@index([userId])
+}
+
+model BookingEventRead {
+  userId         String @db.Uuid
+  bookingEventId String @db.Uuid
+
+  readAt DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingEvent BookingEvent @relation(fields: [bookingEventId], references: [id], onDelete: Cascade)
+
+  @@id([userId, bookingEventId])
+  @@index([bookingEventId])
 }

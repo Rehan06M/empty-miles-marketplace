@@ -8,6 +8,7 @@ import loadRoutes from "./modules/loads/load.routes.js";
 import routingRoutes from "./modules/routing/routing.routes.js";
 import matchingRoutes from "./modules/matching/matching.routes.js";
 import bookingRoutes from "./modules/bookings/booking.routes.js";
+import notificationRoutes from "./modules/notifications/notification.routes.js";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 
@@ -48,6 +49,10 @@ app.use("/api/v1/routing", routingRoutes);
 app.use("/api/v1/matching", matchingRoutes);
 // Real shipper and carrier booking management
 app.use("/api/v1/bookings", bookingRoutes);
+app.use(
+  "/api/v1/notifications",
+  notificationRoutes
+);
 
 // Unknown API routes
 app.use((_req, res) => {

@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   BarChart3,
   CalendarCheck,
+  Bell,
   ClipboardList,
   LayoutDashboard,
   Menu,
@@ -33,6 +34,7 @@ type NavigationItem = {
   label: string;
   icon: LucideIcon;
   to?: string;
+  authOnly?: boolean;
 };
 
 interface DashboardLayoutProps {
@@ -79,6 +81,12 @@ const roleConfig: Record<
         to: "/demo/shipper/bookings",
       },
       {
+        label: "Notifications",
+        icon: Bell,
+        to: "/demo/shipper/notifications",
+        authOnly: true,
+      },
+      {
         label: "Analytics",
         icon: BarChart3,
       },
@@ -111,6 +119,12 @@ const roleConfig: Record<
         label: "Booking Requests",
         icon: ClipboardList,
         to: "/demo/carrier/requests",
+      },
+      {
+        label: "Notifications",
+        icon: Bell,
+        to: "/demo/carrier/notifications",
+        authOnly: true,
       },
       {
         label: "Analytics",
@@ -187,6 +201,9 @@ export function DashboardLayout({
         {config.items
           .filter((item) => !isDemo || item.label !== "Route Map")
           .map((item) => {
+            if (isDemo && item.authOnly) {
+              return null;
+            }
             const Icon = item.icon;
 
             if (!item.to) {
