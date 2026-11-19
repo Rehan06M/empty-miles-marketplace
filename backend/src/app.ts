@@ -26,6 +26,15 @@ app.use(
 );
 
 app.use(express.json({ limit: "100kb" }));
+// Avoid caching private or account-specific API responses.
+app.use("/api/v1", (_req, res, next) => {
+  res.setHeader(
+    "Cache-Control",
+    "no-store"
+  );
+
+  next();
+});
 
 app.get("/api/v1/health", (_req, res) => {
   res.status(200).json({

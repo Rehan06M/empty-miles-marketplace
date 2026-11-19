@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { rateLimit } from "express-rate-limit";
 
 import { prisma } from "../../database/prisma.js";
 
@@ -15,6 +16,19 @@ import {
 import adminReportsRoutes from "./adminReports.routes.js";
 
 const router = Router();
+const moderationLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 12,
+
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+
+  message: {
+    success: false,
+    message:
+      "Too many moderation attempts. Try again shortly.",
+  },
+});
 
 router.use(authenticate, requireRole("ADMIN"));
 // Protected by the parent Admin authentication
@@ -373,6 +387,7 @@ router.get("/actions", async (req, res, next) => {
 // PATCH /api/v1/admin/users/:id/status
 router.patch(
   "/users/:id/status",
+  moderationLimiter,
   async (req, res, next) => {
     try {
       const parsedId = uuidSchema.safeParse(
